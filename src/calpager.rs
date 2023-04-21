@@ -1,7 +1,9 @@
 use chrono::{naive::NaiveDate, Datelike, Local, Month, Weekday, Weekday::*};
 use crossterm::cursor::MoveTo;
 use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::style::{style, ContentStyle, Print, PrintStyledContent, StyledContent, Stylize};
+use crossterm::style::{
+    style, Color, ContentStyle, Print, PrintStyledContent, StyledContent, Stylize,
+};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
     LeaveAlternateScreen,
@@ -70,6 +72,8 @@ pub struct Screen<W: Write> {
     writer: W,
     altscreen: bool,
     raw: bool,
+    fgcolor: Option<Color>,
+    bgcolor: Option<Color>,
 }
 
 impl<W: Write> Screen<W> {
@@ -78,6 +82,8 @@ impl<W: Write> Screen<W> {
             writer,
             altscreen: false,
             raw: false,
+            fgcolor: None,
+            bgcolor: None,
         }
     }
 
@@ -88,9 +94,31 @@ impl<W: Write> Screen<W> {
     }
 
     pub fn raw(&mut self) -> crossterm::Result<&mut Self> {
-        enable_raw_mode()?; // TODO: "Raw mode" disables echo, right?
+        enable_raw_mode()?;
         self.raw = true;
         Ok(self)
+    }
+
+    pub fn set_fg_color(&mut self, color: Color) -> &mut Self {
+        self.fgcolor = Some(color);
+        self
+    }
+
+    // fill_clear() must be called after this in order to actually apply the
+    // background color to the entire screen
+    pub fn set_bg_color(&mut self, color: Color) -> &mut Self {
+        self.bgcolor = Some(color);
+        self
+    }
+
+    fn apply_fgbg<D: Display>(&self, mut content: StyledContent<D>) -> StyledContent<D> {
+        if let Some(fg) = self.fgcolor {
+            content = content.with(fg);
+        }
+        if let Some(bg) = self.bgcolor {
+            content = content.on(bg);
+        }
+        content
     }
 
     pub fn mvprint<S, D>(&mut self, y: u16, x: u16, s: S) -> crossterm::Result<()>
@@ -98,11 +126,12 @@ impl<W: Write> Screen<W> {
         S: Stylize<Styled = StyledContent<D>>,
         D: Display,
     {
-        queue!(self.writer, MoveTo(x, y), PrintStyledContent(s.stylize()))
+        let s = self.apply_fgbg(s.stylize());
+        queue!(self.writer, MoveTo(x, y), PrintStyledContent(s))
     }
 
     pub fn addch(&mut self, ch: char) -> crossterm::Result<()> {
-        self.writer.queue(Print(ch))?;
+        self.writer.queue(Print(self.apply_fgbg(style(ch))))?;
         Ok(())
     }
 
@@ -124,8 +153,18 @@ impl<W: Write> Screen<W> {
         self.writer.flush()
     }
 
-    pub fn clear(&mut self) -> crossterm::Result<()> {
+    pub fn fill_clear(&mut self) -> crossterm::Result<()> {
         self.writer.queue(Clear(ClearType::All))?;
+        let (cols, lines) = size()?;
+        let s = " ".repeat(cols.into());
+        let blankline = if let Some(bg) = self.bgcolor {
+            s.on(bg)
+        } else {
+            s.stylize()
+        };
+        for y in 0..lines {
+            self.mvprint(y, 0, blankline.clone())?;
+        }
         Ok(())
     }
 }
@@ -200,7 +239,7 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
     }
 
     fn draw(&mut self) -> crossterm::Result<()> {
-        self.screen.clear()?;
+        self.screen.fill_clear()?;
         self.screen.mvprint(0, self.left, HEADER.bold())?;
         self.screen.hline(1, self.left, ACS_HLINE, 46)?;
         let top = self.weeks.top();
@@ -358,10 +397,11 @@ impl<F: FnMut(NaiveDate) -> ContentStyle> WeekSheet<F> {
     fn jump_to(&mut self, date: NaiveDate) {
         self.data.clear();
         Self::populate(&mut self.data, &mut self.week_factory, date, self.rows);
+        self.top_index = 1;
     }
 
-    fn top(&self) -> Week {
-        self.data[self.top_index]
+    fn top(&self) -> &Week {
+        &self.data[self.top_index]
     }
 
     fn visible_weeks(&self) -> VisibleWeeks<'_, F> {

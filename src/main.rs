@@ -1,7 +1,7 @@
 mod calpager;
 use crate::calpager::{calendar_pager, Screen};
 use chrono::{naive::NaiveDate, Datelike};
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::{Color, ContentStyle, Stylize};
 use std::io::stdout;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -44,8 +44,11 @@ fn main() -> crossterm::Result<()> {
     }));
 
     let mut screen = Screen::new(stdout());
-    screen.altscreen()?.raw()?;
-    // TODO: Call SetColors to set fg & bg colors
+    screen
+        .altscreen()?
+        .raw()?
+        .set_fg_color(Color::White)
+        .set_bg_color(Color::Black);
     calendar_pager(screen, phoon)
 }
 
