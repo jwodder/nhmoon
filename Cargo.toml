@@ -1,0 +1,9 @@
+[package]
+name = "nhmoon-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4.24"
+crossterm = "0.26.1"
+num-traits = "0.2.15"
