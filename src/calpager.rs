@@ -2,7 +2,10 @@ use chrono::{naive::NaiveDate, Datelike, Local, Month, Weekday, Weekday::*};
 use crossterm::cursor::MoveTo;
 use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{style, ContentStyle, Print, PrintStyledContent, StyledContent, Stylize};
-use crossterm::terminal::{size, Clear, ClearType};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
+    LeaveAlternateScreen,
+};
 use crossterm::{queue, ExecutableCommand, QueueableCommand};
 use num_traits::cast::FromPrimitive;
 use std::collections::VecDeque;
@@ -63,46 +66,82 @@ impl Index<Weekday> for Week {
     }
 }
 
-struct Screen<W>(W);
+pub struct Screen<W: Write> {
+    writer: W,
+    altscreen: bool,
+    raw: bool,
+}
 
 impl<W: Write> Screen<W> {
-    fn new(writer: W) -> Screen<W> {
-        Screen(writer)
+    pub fn new(writer: W) -> Screen<W> {
+        Screen {
+            writer,
+            altscreen: false,
+            raw: false,
+        }
     }
 
-    fn mvprint<S, D>(&mut self, y: u16, x: u16, s: S) -> crossterm::Result<()>
+    pub fn altscreen(&mut self) -> crossterm::Result<&mut Self> {
+        self.writer.execute(EnterAlternateScreen)?;
+        self.altscreen = true;
+        Ok(self)
+    }
+
+    pub fn raw(&mut self) -> crossterm::Result<&mut Self> {
+        enable_raw_mode()?; // TODO: "Raw mode" disables echo, right?
+        self.raw = true;
+        Ok(self)
+    }
+
+    pub fn mvprint<S, D>(&mut self, y: u16, x: u16, s: S) -> crossterm::Result<()>
     where
         S: Stylize<Styled = StyledContent<D>>,
         D: Display,
     {
-        queue!(self.0, MoveTo(x, y), PrintStyledContent(s.stylize()))
+        queue!(self.writer, MoveTo(x, y), PrintStyledContent(s.stylize()))
     }
 
-    fn hline(&mut self, y: u16, x: u16, ch: char, length: usize) -> crossterm::Result<()> {
+    pub fn addch(&mut self, ch: char) -> crossterm::Result<()> {
+        self.writer.queue(Print(ch))?;
+        Ok(())
+    }
+
+    pub fn hline(&mut self, y: u16, x: u16, ch: char, length: usize) -> crossterm::Result<()> {
         self.mvprint(y, x, String::from(ch).repeat(length))
     }
 
-    fn beep(&mut self) -> crossterm::Result<()> {
-        self.0.execute(Print("\x07"))?;
+    pub fn beep(&mut self) -> crossterm::Result<()> {
+        self.writer.execute(Print("\x07"))?;
         Ok(())
     }
 
-    fn moveto(&mut self, y: u16, x: u16) -> crossterm::Result<()> {
-        self.0.queue(MoveTo(x, y))?;
+    pub fn moveto(&mut self, y: u16, x: u16) -> crossterm::Result<()> {
+        self.writer.queue(MoveTo(x, y))?;
         Ok(())
     }
 
-    fn refresh(&mut self) -> crossterm::Result<()> {
-        self.0.flush()
+    pub fn refresh(&mut self) -> crossterm::Result<()> {
+        self.writer.flush()
     }
 
-    fn clear(&mut self) -> crossterm::Result<()> {
-        self.0.queue(Clear(ClearType::All))?;
+    pub fn clear(&mut self) -> crossterm::Result<()> {
+        self.writer.queue(Clear(ClearType::All))?;
         Ok(())
     }
 }
 
-struct CalPager<W, F> {
+impl<W: Write> Drop for Screen<W> {
+    fn drop(&mut self) {
+        if self.raw {
+            let _ = disable_raw_mode();
+        }
+        if self.altscreen {
+            let _ = self.writer.execute(LeaveAlternateScreen);
+        }
+    }
+}
+
+struct CalPager<W: Write, F> {
     screen: Screen<W>,
     today: NaiveDate,
     weeks: WeekSheet<F>,
@@ -113,8 +152,7 @@ struct CalPager<W, F> {
 }
 
 impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
-    fn new(screen: W, highlighter: F) -> crossterm::Result<Self> {
-        let screen = Screen::new(screen);
+    fn new(screen: Screen<W>, highlighter: F) -> crossterm::Result<Self> {
         let (cols, lines) = size()?;
         let rows = (lines - 1) / 2; // ceil((lines - 2)/2)
         let left = (cols - 46) / 2;
@@ -197,7 +235,7 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
                         .mvprint(y, self.left - 1 + 7 * j, week[wd].apply_style(s))?;
                     let mut end_of_border = false;
                     if j < 6 && week[wd].month() != week[wd.succ()].month() {
-                        self.screen.0.queue(Print(ACS_VLINE))?;
+                        self.screen.addch(ACS_VLINE)?;
                         self.screen.mvprint(
                             y - 1,
                             self.left + 5 + 7 * j,
@@ -209,7 +247,7 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
                         }
                         end_of_border = true;
                     } else {
-                        self.screen.0.queue(Print(' '))?;
+                        self.screen.addch(' ')?;
                     }
                     if i < self.rows - 1 && week[wd].month() != week.succ()[wd].month() {
                         self.screen.hline(
@@ -427,7 +465,7 @@ impl Iterator for WeekdayIter {
 }
 
 pub fn calendar_pager<W: Write, F: FnMut(NaiveDate) -> ContentStyle>(
-    screen: W,
+    screen: Screen<W>,
     highlighter: F,
 ) -> crossterm::Result<()> {
     CalPager::new(screen, highlighter)?.run()

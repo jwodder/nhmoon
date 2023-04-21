@@ -1,11 +1,7 @@
 mod calpager;
-use crate::calpager::calendar_pager;
+use crate::calpager::{calendar_pager, Screen};
 use chrono::{naive::NaiveDate, Datelike};
 use crossterm::style::{ContentStyle, Stylize};
-use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
-};
-use crossterm::ExecutableCommand;
 use std::io::stdout;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -41,15 +37,10 @@ impl Phase {
 }
 
 fn main() -> crossterm::Result<()> {
-    let mut stdout = stdout();
-    stdout.execute(EnterAlternateScreen)?;
-    enable_raw_mode()?; // "Raw mode" here disables echo, right?
-                        // TODO: Call SetColors to set fg & bg colors?
-    calendar_pager(&mut stdout, &phoon)?;
-    // TODO: Ensure this is run on Err:
-    disable_raw_mode()?;
-    stdout.execute(LeaveAlternateScreen)?;
-    Ok(())
+    let mut screen = Screen::new(stdout());
+    screen.altscreen()?.raw()?;
+    // TODO: Call SetColors to set fg & bg colors
+    calendar_pager(screen, phoon)
 }
 
 fn phoon(date: NaiveDate) -> ContentStyle {
