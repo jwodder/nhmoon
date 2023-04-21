@@ -30,8 +30,8 @@ impl Phase {
     fn style(&self) -> ContentStyle {
         match self {
             Phase::Normal => ContentStyle::new(),
-            Phase::Full => ContentStyle::new().yellow().on_black(),
-            Phase::New => ContentStyle::new().blue().on_black(),
+            Phase::Full => ContentStyle::new().yellow().bold(),
+            Phase::New => ContentStyle::new().blue(),
         }
     }
 }

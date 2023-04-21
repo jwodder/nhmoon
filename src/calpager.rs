@@ -114,11 +114,12 @@ impl<W: Write> Screen<W> {
     }
 
     fn apply_fgbg<D: Display>(&self, mut content: StyledContent<D>) -> StyledContent<D> {
-        if let Some(fg) = self.fgcolor {
-            content = content.with(fg);
+        let style = content.style_mut();
+        if style.foreground_color.is_none() && self.fgcolor.is_some() {
+            style.foreground_color = self.fgcolor;
         }
-        if let Some(bg) = self.bgcolor {
-            content = content.on(bg);
+        if style.background_color.is_none() && self.bgcolor.is_some() {
+            style.background_color = self.bgcolor;
         }
         content
     }
@@ -266,48 +267,42 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
                         )?;
                     }
                 }
-                for (j, wd) in (0..).zip(WeekdayIter::new()) {
-                    let s = if week[wd].date == self.today {
-                        format!(" [{:2}] ", week[wd].day())
-                    } else {
-                        format!("  {:2}  ", week[wd].day())
-                    };
+            }
+            for (j, wd) in (0..).zip(WeekdayIter::new()) {
+                let s = if week[wd].date == self.today {
+                    format!(" [{:2}] ", week[wd].day())
+                } else {
+                    format!("  {:2}  ", week[wd].day())
+                };
+                self.screen
+                    .mvprint(y, self.left - 1 + DAY_WIDTH * j, week[wd].apply_style(s))?;
+                let mut end_of_border = false;
+                if j < 6 && week[wd].month() != week[wd.succ()].month() {
+                    self.screen.addch(ACS_VLINE)?;
                     self.screen.mvprint(
-                        y,
-                        self.left - 1 + DAY_WIDTH * j,
-                        week[wd].apply_style(s),
+                        y - 1,
+                        self.left + 5 + DAY_WIDTH * j,
+                        if i == 0 { ACS_TTEE } else { ACS_ULCORNER },
                     )?;
-                    let mut end_of_border = false;
-                    if j < 6 && week[wd].month() != week[wd.succ()].month() {
-                        self.screen.addch(ACS_VLINE)?;
-                        self.screen.mvprint(
-                            y - 1,
-                            self.left + 5 + DAY_WIDTH * j,
-                            if i == 0 { ACS_TTEE } else { ACS_ULCORNER },
-                        )?;
-                        if i < self.rows - 1 {
-                            self.screen.mvprint(
-                                y + 1,
-                                self.left + 5 + DAY_WIDTH * j,
-                                ACS_LRCORNER,
-                            )?;
-                        }
-                        end_of_border = true;
-                    } else {
-                        self.screen.addch(' ')?;
+                    if i < self.rows - 1 {
+                        self.screen
+                            .mvprint(y + 1, self.left + 5 + DAY_WIDTH * j, ACS_LRCORNER)?;
                     }
-                    if i < self.rows - 1 && week[wd].month() != week.succ()[wd].month() {
-                        self.screen.hline(
-                            y + 1,
-                            self.left - 1 + DAY_WIDTH * j + u16::from(j == 0),
-                            ACS_HLINE,
-                            if wd == Sat {
-                                5
-                            } else {
-                                7 - usize::from(end_of_border)
-                            } - usize::from(j == 0),
-                        )?;
-                    }
+                    end_of_border = true;
+                } else {
+                    self.screen.addch(' ')?;
+                }
+                if i < self.rows - 1 && week[wd].month() != week.succ()[wd].month() {
+                    self.screen.hline(
+                        y + 1,
+                        self.left - 1 + DAY_WIDTH * j + u16::from(j == 0),
+                        ACS_HLINE,
+                        if wd == Sat {
+                            5
+                        } else {
+                            7 - usize::from(end_of_border) - usize::from(j == 0)
+                        },
+                    )?;
                 }
             }
         }
