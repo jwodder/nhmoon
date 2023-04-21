@@ -37,6 +37,12 @@ impl Phase {
 }
 
 fn main() -> crossterm::Result<()> {
+    #[cfg(feature = "log-panic")]
+    std::panic::set_hook(Box::new(|info| {
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        let _ = std::fs::write("panic.txt", format!("{info}\n\n{backtrace}\n"));
+    }));
+
     let mut screen = Screen::new(stdout());
     screen.altscreen()?.raw()?;
     // TODO: Call SetColors to set fg & bg colors

@@ -303,7 +303,7 @@ impl<F: FnMut(NaiveDate) -> ContentStyle> WeekSheet<F> {
             rows,
             capacity,
             data,
-            top_index: 0,
+            top_index: 1,
         }
     }
 

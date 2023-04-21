@@ -7,3 +7,6 @@ edition = "2021"
 chrono = "0.4.24"
 crossterm = "0.26.1"
 num-traits = "0.2.15"
+
+[features]
+log-panic = []
