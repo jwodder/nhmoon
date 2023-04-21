@@ -17,6 +17,8 @@ use std::ops::{Deref, Index, Range};
 
 static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa";
 
+const DAY_WIDTH: u16 = 7;
+
 const ACS_HLINE: char = '\u{2500}';
 const ACS_VLINE: char = '\u{2502}';
 const ACS_TTEE: char = '\u{252C}';
@@ -270,19 +272,25 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
                     } else {
                         format!("  {:2}  ", week[wd].day())
                     };
-                    self.screen
-                        .mvprint(y, self.left - 1 + 7 * j, week[wd].apply_style(s))?;
+                    self.screen.mvprint(
+                        y,
+                        self.left - 1 + DAY_WIDTH * j,
+                        week[wd].apply_style(s),
+                    )?;
                     let mut end_of_border = false;
                     if j < 6 && week[wd].month() != week[wd.succ()].month() {
                         self.screen.addch(ACS_VLINE)?;
                         self.screen.mvprint(
                             y - 1,
-                            self.left + 5 + 7 * j,
+                            self.left + 5 + DAY_WIDTH * j,
                             if i == 0 { ACS_TTEE } else { ACS_ULCORNER },
                         )?;
                         if i < self.rows - 1 {
-                            self.screen
-                                .mvprint(y + 1, self.left + 5 + 7 * j, ACS_LRCORNER)?;
+                            self.screen.mvprint(
+                                y + 1,
+                                self.left + 5 + DAY_WIDTH * j,
+                                ACS_LRCORNER,
+                            )?;
                         }
                         end_of_border = true;
                     } else {
@@ -291,7 +299,7 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
                     if i < self.rows - 1 && week[wd].month() != week.succ()[wd].month() {
                         self.screen.hline(
                             y + 1,
-                            self.left - 1 + 7 * j + u16::from(j == 0),
+                            self.left - 1 + DAY_WIDTH * j + u16::from(j == 0),
                             ACS_HLINE,
                             if wd == Sat {
                                 5
