@@ -161,12 +161,12 @@ impl<W: Write> Screen<W> {
         let (cols, lines) = size()?;
         let s = " ".repeat(cols.into());
         let blankline = if let Some(bg) = self.bgcolor {
-            s.on(bg)
+            s.as_str().on(bg)
         } else {
-            s.stylize()
+            s.as_str().stylize()
         };
         for y in 0..lines {
-            self.mvprint(y, 0, blankline.clone())?;
+            self.mvprint(y, 0, blankline)?;
         }
         Ok(())
     }
