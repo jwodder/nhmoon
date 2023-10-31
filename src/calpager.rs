@@ -33,7 +33,9 @@ struct StyledDay {
 
 impl StyledDay {
     fn month_name(&self) -> &'static str {
-        Month::from_u32(self.date.month()).unwrap().name()
+        Month::from_u32(self.date.month())
+            .expect("converting a month number to a Month should not fail")
+            .name()
     }
 
     fn apply_style<D: Display>(&self, val: D) -> StyledContent<D> {
@@ -385,7 +387,11 @@ impl<F: FnMut(NaiveDate) -> ContentStyle> WeekSheet<F> {
     fn scroll_down(&mut self) {
         self.top_index += 1;
         if let Some(needed) = (self.top_index + self.rows + 1).checked_sub(self.data.len()) {
-            let mut week = self.data.back().copied().unwrap();
+            let mut week = self
+                .data
+                .back()
+                .copied()
+                .expect("self.data should always be nonempty");
             for _ in 0..needed {
                 week = self.week_factory.week_after(&week);
                 if self.data.len() >= self.capacity {
@@ -529,5 +535,7 @@ fn n_days_before(mut date: NaiveDate, n: usize) -> NaiveDate {
 }
 
 fn weekday_index(wd: Weekday) -> usize {
-    wd.num_days_from_sunday().try_into().unwrap()
+    wd.num_days_from_sunday()
+        .try_into()
+        .expect("number of days from Sunday should fit in a usize")
 }
