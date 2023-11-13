@@ -1,14 +1,15 @@
 use chrono::{naive::NaiveDate, Datelike, Local, Month, Weekday, Weekday::*};
-use crossterm::cursor::MoveTo;
-use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use crossterm::style::{
-    style, Color, ContentStyle, Print, PrintStyledContent, StyledContent, Stylize,
+use crossterm::{
+    cursor::MoveTo,
+    event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
+    queue,
+    style::{style, Color, ContentStyle, Print, PrintStyledContent, StyledContent, Stylize},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
+    ExecutableCommand, QueueableCommand,
 };
-use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
-    LeaveAlternateScreen,
-};
-use crossterm::{queue, ExecutableCommand, QueueableCommand};
 use num_traits::cast::FromPrimitive;
 use std::collections::VecDeque;
 use std::fmt::Display;
