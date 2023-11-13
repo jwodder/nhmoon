@@ -1,6 +1,6 @@
 use chrono::{naive::NaiveDate, Datelike, Local, Month, Weekday, Weekday::*};
 use crossterm::cursor::MoveTo;
-use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::style::{
     style, Color, ContentStyle, Print, PrintStyledContent, StyledContent, Stylize,
 };
@@ -219,7 +219,10 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
             self.draw()?;
             match read()? {
                 Event::Key(KeyEvent {
-                    code, modifiers, ..
+                    code,
+                    modifiers,
+                    kind: KeyEventKind::Press,
+                    ..
                 }) if normal_key_mods.contains(modifiers) => match code {
                     KeyCode::Char('j') | KeyCode::PageDown => self.scroll_down(),
                     KeyCode::Char('k') | KeyCode::PageUp => self.scroll_up(),
@@ -237,7 +240,11 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
                     KeyCode::Char('q') => break,
                     _ => self.screen.beep()?,
                 },
-                _ => self.screen.beep()?,
+                Event::Key(KeyEvent {
+                    kind: KeyEventKind::Press,
+                    ..
+                }) => self.screen.beep()?,
+                _ => (),
             }
         }
         Ok(())
