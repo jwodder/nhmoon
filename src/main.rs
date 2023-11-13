@@ -2,7 +2,7 @@ mod calpager;
 use crate::calpager::{calendar_pager, Screen};
 use chrono::{naive::NaiveDate, Datelike};
 use crossterm::style::{Color, ContentStyle, Stylize};
-use std::io::stdout;
+use std::io;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 enum Phase {
@@ -36,14 +36,14 @@ impl Phase {
     }
 }
 
-fn main() -> crossterm::Result<()> {
+fn main() -> io::Result<()> {
     #[cfg(feature = "log-panic")]
     std::panic::set_hook(Box::new(|info| {
         let backtrace = std::backtrace::Backtrace::force_capture();
         let _ = std::fs::write("panic.txt", format!("{info}\n\n{backtrace}\n"));
     }));
 
-    let mut screen = Screen::new(stdout());
+    let mut screen = Screen::new(io::stdout());
     screen
         .altscreen()?
         .raw()?

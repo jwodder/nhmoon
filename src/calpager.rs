@@ -12,7 +12,7 @@ use crossterm::{queue, ExecutableCommand, QueueableCommand};
 use num_traits::cast::FromPrimitive;
 use std::collections::VecDeque;
 use std::fmt::Display;
-use std::io::Write;
+use std::io::{self, Write};
 use std::ops::{Deref, Index, Range};
 
 static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa";
@@ -91,13 +91,13 @@ impl<W: Write> Screen<W> {
         }
     }
 
-    pub fn altscreen(&mut self) -> crossterm::Result<&mut Self> {
+    pub fn altscreen(&mut self) -> io::Result<&mut Self> {
         self.writer.execute(EnterAlternateScreen)?;
         self.altscreen = true;
         Ok(self)
     }
 
-    pub fn raw(&mut self) -> crossterm::Result<&mut Self> {
+    pub fn raw(&mut self) -> io::Result<&mut Self> {
         enable_raw_mode()?;
         self.raw = true;
         Ok(self)
@@ -126,7 +126,7 @@ impl<W: Write> Screen<W> {
         content
     }
 
-    pub fn mvprint<S, D>(&mut self, y: u16, x: u16, s: S) -> crossterm::Result<()>
+    pub fn mvprint<S, D>(&mut self, y: u16, x: u16, s: S) -> io::Result<()>
     where
         S: Stylize<Styled = StyledContent<D>>,
         D: Display,
@@ -135,30 +135,30 @@ impl<W: Write> Screen<W> {
         queue!(self.writer, MoveTo(x, y), PrintStyledContent(s))
     }
 
-    pub fn addch(&mut self, ch: char) -> crossterm::Result<()> {
+    pub fn addch(&mut self, ch: char) -> io::Result<()> {
         self.writer.queue(Print(self.apply_fgbg(style(ch))))?;
         Ok(())
     }
 
-    pub fn hline(&mut self, y: u16, x: u16, ch: char, length: usize) -> crossterm::Result<()> {
+    pub fn hline(&mut self, y: u16, x: u16, ch: char, length: usize) -> io::Result<()> {
         self.mvprint(y, x, String::from(ch).repeat(length))
     }
 
-    pub fn beep(&mut self) -> crossterm::Result<()> {
+    pub fn beep(&mut self) -> io::Result<()> {
         self.writer.execute(Print("\x07"))?;
         Ok(())
     }
 
-    pub fn moveto(&mut self, y: u16, x: u16) -> crossterm::Result<()> {
+    pub fn moveto(&mut self, y: u16, x: u16) -> io::Result<()> {
         self.writer.queue(MoveTo(x, y))?;
         Ok(())
     }
 
-    pub fn refresh(&mut self) -> crossterm::Result<()> {
+    pub fn refresh(&mut self) -> io::Result<()> {
         self.writer.flush()
     }
 
-    pub fn fill_clear(&mut self) -> crossterm::Result<()> {
+    pub fn fill_clear(&mut self) -> io::Result<()> {
         self.writer.queue(Clear(ClearType::All))?;
         let (cols, lines) = size()?;
         let s = " ".repeat(cols.into());
@@ -196,7 +196,7 @@ struct CalPager<W: Write, F> {
 }
 
 impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
-    fn new(screen: Screen<W>, highlighter: F) -> crossterm::Result<Self> {
+    fn new(screen: Screen<W>, highlighter: F) -> io::Result<Self> {
         let (cols, lines) = size()?;
         let rows = (lines - 1) / 2; // ceil((lines - 2)/2)
         let left = (cols - 46) / 2;
@@ -213,7 +213,7 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
         })
     }
 
-    fn run(&mut self) -> crossterm::Result<()> {
+    fn run(&mut self) -> io::Result<()> {
         let normal_key_mods = KeyModifiers::NONE | KeyModifiers::SHIFT;
         loop {
             self.draw()?;
@@ -243,7 +243,7 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
         Ok(())
     }
 
-    fn draw(&mut self) -> crossterm::Result<()> {
+    fn draw(&mut self) -> io::Result<()> {
         self.screen.fill_clear()?;
         self.screen.mvprint(0, self.left, HEADER.bold())?;
         self.screen.hline(1, self.left, ACS_HLINE, 46)?;
@@ -516,7 +516,7 @@ impl Iterator for WeekdayIter {
 pub fn calendar_pager<W: Write, F: FnMut(NaiveDate) -> ContentStyle>(
     screen: Screen<W>,
     highlighter: F,
-) -> crossterm::Result<()> {
+) -> io::Result<()> {
     CalPager::new(screen, highlighter)?.run()
 }
 
