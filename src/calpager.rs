@@ -16,8 +16,33 @@ use std::fmt::Display;
 use std::io::{self, Write};
 use std::ops::{Deref, Index, Range};
 
-static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa";
+static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa ";
 
+/// Width of the calendar in columns, not counting the year and months in the
+/// margins
+const WIDTH: u16 = 46;
+
+/// Columns to the left of the calendar at which the display of the year starts
+const YEAR_OFFSET: u16 = 6;
+
+/// Columns between the right edge of the calendar and the start of the month
+/// name
+const MONTH_GUTTER: u16 = 2;
+
+/// Number of lines taken up by the header and its rule
+const HEADER_LINES: u16 = 2;
+
+/// Number of lines taken up by each week of the calendar
+const WEEK_LINES: u16 = 2;
+
+const DAYS_IN_WEEK: u16 = 7;
+
+/// When inserting a vertical bar-like character between consecutive days in
+/// the same week but different months, draw it this many columns to the right
+/// of the left edge of the day on the left.
+const VBAR_OFFSET: u16 = 5;
+
+/// Number of columns per day of week
 const DAY_WIDTH: u16 = 7;
 
 const ACS_HLINE: char = '\u{2500}';
@@ -53,7 +78,7 @@ impl Deref for StyledDay {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct Week([StyledDay; 7]);
+struct Week([StyledDay; DAYS_IN_WEEK as usize]);
 
 impl Week {
     fn new<F: FnMut(NaiveDate) -> ContentStyle>(sunday: NaiveDate, mut highlighter: F) -> Self {
@@ -200,7 +225,7 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
     fn new(screen: Screen<W>, highlighter: F) -> io::Result<Self> {
         let (cols, lines) = size()?;
         let rows = (lines - 1) / 2; // ceil((lines - 2)/2)
-        let left = (cols - 46) / 2;
+        let left = (cols - WIDTH) / 2;
         let today = Local::now().date_naive();
         let weeks = WeekSheet::new(today, rows.into(), highlighter);
         Ok(CalPager {
@@ -257,25 +282,37 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
     fn draw(&mut self) -> io::Result<()> {
         self.screen.fill_clear()?;
         self.screen.mvprint(0, self.left, HEADER.bold())?;
-        self.screen.hline(1, self.left, ACS_HLINE, 46)?;
+        self.screen.hline(1, self.left, ACS_HLINE, WIDTH.into())?;
         let top = self.weeks.top();
-        self.screen
-            .mvprint(2, self.left - 6, style(top[Sun].year()).bold())?;
-        self.screen
-            .mvprint(2, self.left + 48, top[Sat].month_name().bold())?;
+        self.screen.mvprint(
+            HEADER_LINES,
+            self.left - YEAR_OFFSET,
+            style(top[Sun].year()).bold(),
+        )?;
+        self.screen.mvprint(
+            HEADER_LINES,
+            self.left + WIDTH + MONTH_GUTTER,
+            top[Sat].month_name().bold(),
+        )?;
         for (i, week) in (0..).zip(self.weeks.visible_weeks()) {
-            let y = 2 + i * 2;
+            let y = WEEK_LINES + i * HEADER_LINES;
             if week[Sat].month() != week.pred()[Sat].month() {
-                self.screen
-                    .mvprint(y, self.left + 48, week[Sat].month_name().bold())?;
+                self.screen.mvprint(
+                    y,
+                    self.left + WIDTH + MONTH_GUTTER,
+                    week[Sat].month_name().bold(),
+                )?;
                 if week[Sat].month() == 1 {
                     if week[Sun].month() == 1 {
-                        self.screen
-                            .mvprint(y, self.left - 6, style(week[Sun].year()).bold())?;
+                        self.screen.mvprint(
+                            y,
+                            self.left - YEAR_OFFSET,
+                            style(week[Sun].year()).bold(),
+                        )?;
                     } else if i < self.rows - 1 {
                         self.screen.mvprint(
-                            y + 2,
-                            self.left - 6,
+                            y + WEEK_LINES,
+                            self.left - YEAR_OFFSET,
                             style(week[Sat].year()).bold(),
                         )?;
                     }
@@ -290,16 +327,19 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
                 self.screen
                     .mvprint(y, self.left - 1 + DAY_WIDTH * j, week[wd].apply_style(s))?;
                 let mut end_of_border = false;
-                if j < 6 && week[wd].month() != week[wd.succ()].month() {
+                if j < (DAYS_IN_WEEK - 1) && week[wd].month() != week[wd.succ()].month() {
                     self.screen.addch(ACS_VLINE)?;
                     self.screen.mvprint(
                         y - 1,
-                        self.left + 5 + DAY_WIDTH * j,
+                        self.left + VBAR_OFFSET + DAY_WIDTH * j,
                         if i == 0 { ACS_TTEE } else { ACS_ULCORNER },
                     )?;
                     if i < self.rows - 1 {
-                        self.screen
-                            .mvprint(y + 1, self.left + 5 + DAY_WIDTH * j, ACS_LRCORNER)?;
+                        self.screen.mvprint(
+                            y + 1,
+                            self.left + VBAR_OFFSET + DAY_WIDTH * j,
+                            ACS_LRCORNER,
+                        )?;
                     }
                     end_of_border = true;
                 } else {
