@@ -220,6 +220,9 @@ impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
             self.draw()?;
             match read()? {
                 Event::Key(KeyEvent {
+                    code: KeyCode::Esc, ..
+                }) => break,
+                Event::Key(KeyEvent {
                     code,
                     modifiers,
                     kind: KeyEventKind::Press,
