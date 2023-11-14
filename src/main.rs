@@ -1,57 +1,42 @@
+mod app;
 mod calpager;
-use crate::calpager::{calendar_pager, Screen};
-use chrono::{naive::NaiveDate, Datelike};
-use crossterm::style::{Color, ContentStyle, Stylize};
+mod moon;
+mod weeks;
+use crate::app::App;
+use crate::moon::Phoon;
+use chrono::Local;
+use crossterm::{
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::prelude::*;
 use std::io;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
-enum Phase {
-    Normal,
-    Full,
-    New,
-}
-
-impl Phase {
-    fn for_date(date: NaiveDate) -> Phase {
-        // Will give wrong results pre-1900
-        let year = date.year().abs_diff(1900);
-        let goldn = (year % 19) + 1;
-        let mut epact = (11 * goldn + 18) % 30;
-        if (epact == 25 && goldn > 11) || epact == 24 {
-            epact += 1;
-        }
-        match (((((date.ordinal0() + epact) * 6) + 11) % 177) / 22) & 7 {
-            0 => Phase::New,
-            4 => Phase::Full,
-            _ => Phase::Normal,
-        }
-    }
-
-    fn style(&self) -> ContentStyle {
-        match self {
-            Phase::Normal => ContentStyle::new(),
-            Phase::Full => ContentStyle::new().yellow().bold(),
-            Phase::New => ContentStyle::new().blue(),
-        }
-    }
-}
-
 fn main() -> io::Result<()> {
-    #[cfg(feature = "log-panic")]
-    std::panic::set_hook(Box::new(|info| {
-        let backtrace = std::backtrace::Backtrace::force_capture();
-        let _ = std::fs::write("panic.txt", format!("{info}\n\n{backtrace}\n"));
+    let today = Local::now().date_naive();
+    let mut terminal = init_terminal()?;
+    terminal.hide_cursor()?;
+
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic| {
+        let _ = reset_terminal();
+        original_hook(panic);
     }));
 
-    let mut screen = Screen::new(io::stdout());
-    screen
-        .altscreen()?
-        .raw()?
-        .set_fg_color(Color::White)
-        .set_bg_color(Color::Black);
-    calendar_pager(screen, phoon)
+    let r = App::new(terminal, today, Phoon).run();
+    reset_terminal()?;
+    r
 }
 
-fn phoon(date: NaiveDate) -> ContentStyle {
-    Phase::for_date(date).style()
+fn init_terminal() -> io::Result<Terminal<CrosstermBackend<io::Stdout>>> {
+    let mut stream = io::stdout();
+    execute!(stream, EnterAlternateScreen)?;
+    enable_raw_mode()?;
+    Terminal::new(CrosstermBackend::new(stream))
+}
+
+fn reset_terminal() -> io::Result<()> {
+    disable_raw_mode()?;
+    execute!(io::stdout(), LeaveAlternateScreen)?;
+    Ok(())
 }

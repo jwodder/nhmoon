@@ -1,592 +1,283 @@
-use chrono::{naive::NaiveDate, Datelike, Local, Month, Weekday, Weekday::*};
-use crossterm::{
-    cursor::MoveTo,
-    event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
-    queue,
-    style::{style, Color, ContentStyle, Print, PrintStyledContent, StyledContent, Stylize},
-    terminal::{
-        disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
-        LeaveAlternateScreen,
-    },
-    ExecutableCommand, QueueableCommand,
+use crate::weeks::*;
+use chrono::{
+    naive::NaiveDate,
+    Month::{self, January},
+    Weekday::{self, Sat, Sun},
 };
-use num_traits::cast::FromPrimitive;
+use ratatui::{prelude::*, widgets::StatefulWidget};
 use std::collections::VecDeque;
-use std::fmt::Display;
-use std::io::{self, Write};
-use std::ops::{Deref, Index, Range};
+use std::marker::PhantomData;
 
 static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa ";
 
 /// Width of the calendar in columns, not counting the year and months in the
 /// margins
-const WIDTH: u16 = 46;
+const MAIN_WIDTH: usize = 46;
 
-/// Columns to the left of the calendar at which the display of the year starts
-const YEAR_OFFSET: u16 = 6;
+const TOTAL_WIDTH: usize = LEFT_MARGIN + MAIN_WIDTH + RIGHT_MARGIN;
+
+/// Number of columns on the left side of the calendar, used as the margin in
+/// which the year is written
+const LEFT_MARGIN: usize = 6;
+
+const LONGEST_MONTH_NAME_LEN: usize = 9; // September
+
+/// Number of columns on the right side of the calendar, used as the margin in
+/// which the month is written
+const RIGHT_MARGIN: usize = LONGEST_MONTH_NAME_LEN + MONTH_GUTTER;
 
 /// Columns between the right edge of the calendar and the start of the month
 /// name
-const MONTH_GUTTER: u16 = 2;
+const MONTH_GUTTER: usize = 2;
 
 /// Number of lines taken up by the header and its rule
-const HEADER_LINES: u16 = 2;
+const HEADER_LINES: usize = 2;
 
 /// Number of lines taken up by each week of the calendar
-const WEEK_LINES: u16 = 2;
-
-const DAYS_IN_WEEK: u16 = 7;
+const WEEK_LINES: usize = 2;
 
 /// When inserting a vertical bar-like character between consecutive days in
 /// the same week but different months, draw it this many columns to the right
 /// of the left edge of the day on the left.
-const VBAR_OFFSET: u16 = 5;
+const VBAR_OFFSET: usize = 5;
 
 /// Number of columns per day of week
-const DAY_WIDTH: u16 = 7;
+const DAY_WIDTH: usize = 7;
 
-const ACS_HLINE: char = '\u{2500}';
-const ACS_VLINE: char = '\u{2502}';
-const ACS_TTEE: char = '\u{252C}';
-const ACS_ULCORNER: char = '\u{250C}';
-const ACS_LRCORNER: char = '\u{2518}';
+const ACS_HLINE: char = '─';
+const ACS_VLINE: char = '│';
+const ACS_TTEE: char = '┬';
+const ACS_ULCORNER: char = '┌';
+const ACS_LRCORNER: char = '┘';
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct StyledDay {
-    date: NaiveDate,
-    style: ContentStyle,
-}
-
-impl StyledDay {
-    fn month_name(&self) -> &'static str {
-        Month::from_u32(self.date.month())
-            .expect("converting a month number to a Month should not fail")
-            .name()
-    }
-
-    fn apply_style<D: Display>(&self, val: D) -> StyledContent<D> {
-        self.style.apply(val)
-    }
-}
-
-impl Deref for StyledDay {
-    type Target = NaiveDate;
-
-    fn deref(&self) -> &NaiveDate {
-        &self.date
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct Week([StyledDay; DAYS_IN_WEEK as usize]);
-
-impl Week {
-    fn new<F: FnMut(NaiveDate) -> ContentStyle>(sunday: NaiveDate, mut highlighter: F) -> Self {
-        Week(std::array::from_fn(move |i| {
-            let date = n_days_after(sunday, i);
-            let style = highlighter(date);
-            StyledDay { date, style }
-        }))
-    }
-}
-
-impl Index<Weekday> for Week {
-    type Output = StyledDay;
-
-    fn index(&self, index: Weekday) -> &StyledDay {
-        &self.0[weekday_index(index)]
-    }
-}
-
-pub struct Screen<W: Write> {
-    writer: W,
-    altscreen: bool,
-    raw: bool,
-    fgcolor: Option<Color>,
-    bgcolor: Option<Color>,
-}
-
-impl<W: Write> Screen<W> {
-    pub fn new(writer: W) -> Screen<W> {
-        Screen {
-            writer,
-            altscreen: false,
-            raw: false,
-            fgcolor: None,
-            bgcolor: None,
-        }
-    }
-
-    pub fn altscreen(&mut self) -> io::Result<&mut Self> {
-        self.writer.execute(EnterAlternateScreen)?;
-        self.altscreen = true;
-        Ok(self)
-    }
-
-    pub fn raw(&mut self) -> io::Result<&mut Self> {
-        enable_raw_mode()?;
-        self.raw = true;
-        Ok(self)
-    }
-
-    pub fn set_fg_color(&mut self, color: Color) -> &mut Self {
-        self.fgcolor = Some(color);
-        self
-    }
-
-    // fill_clear() must be called after this in order to actually apply the
-    // background color to the entire screen
-    pub fn set_bg_color(&mut self, color: Color) -> &mut Self {
-        self.bgcolor = Some(color);
-        self
-    }
-
-    fn apply_fgbg<D: Display>(&self, mut content: StyledContent<D>) -> StyledContent<D> {
-        let style = content.style_mut();
-        if style.foreground_color.is_none() && self.fgcolor.is_some() {
-            style.foreground_color = self.fgcolor;
-        }
-        if style.background_color.is_none() && self.bgcolor.is_some() {
-            style.background_color = self.bgcolor;
-        }
-        content
-    }
-
-    pub fn mvprint<S, D>(&mut self, y: u16, x: u16, s: S) -> io::Result<()>
-    where
-        S: Stylize<Styled = StyledContent<D>>,
-        D: Display,
-    {
-        let s = self.apply_fgbg(s.stylize());
-        queue!(self.writer, MoveTo(x, y), PrintStyledContent(s))
-    }
-
-    pub fn addch(&mut self, ch: char) -> io::Result<()> {
-        self.writer.queue(Print(self.apply_fgbg(style(ch))))?;
-        Ok(())
-    }
-
-    pub fn hline(&mut self, y: u16, x: u16, ch: char, length: usize) -> io::Result<()> {
-        self.mvprint(y, x, String::from(ch).repeat(length))
-    }
-
-    pub fn beep(&mut self) -> io::Result<()> {
-        self.writer.execute(Print("\x07"))?;
-        Ok(())
-    }
-
-    pub fn moveto(&mut self, y: u16, x: u16) -> io::Result<()> {
-        self.writer.queue(MoveTo(x, y))?;
-        Ok(())
-    }
-
-    pub fn refresh(&mut self) -> io::Result<()> {
-        self.writer.flush()
-    }
-
-    pub fn fill_clear(&mut self) -> io::Result<()> {
-        self.writer.queue(Clear(ClearType::All))?;
-        let (cols, lines) = size()?;
-        let s = " ".repeat(cols.into());
-        let blankline = if let Some(bg) = self.bgcolor {
-            s.as_str().on(bg)
-        } else {
-            s.as_str().stylize()
-        };
-        for y in 0..lines {
-            self.mvprint(y, 0, blankline)?;
-        }
-        Ok(())
-    }
-}
-
-impl<W: Write> Drop for Screen<W> {
-    fn drop(&mut self) {
-        if self.raw {
-            let _ = disable_raw_mode();
-        }
-        if self.altscreen {
-            let _ = self.writer.execute(LeaveAlternateScreen);
-        }
-    }
-}
-
-struct CalPager<W: Write, F> {
-    screen: Screen<W>,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CalPager<S> {
     today: NaiveDate,
-    weeks: WeekSheet<F>,
-    left: u16,
-    rows: u16,
-    cols: u16,
-    lines: u16,
+    weeks: Option<VecDeque<Week>>,
+    week_factory: WeekFactory<S>,
 }
 
-impl<W: Write, F: FnMut(NaiveDate) -> ContentStyle> CalPager<W, F> {
-    fn new(screen: Screen<W>, highlighter: F) -> io::Result<Self> {
-        let (cols, lines) = size()?;
-        let rows = (lines - 1) / 2; // ceil((lines - 2)/2)
-        let left = (cols - WIDTH) / 2;
-        let today = Local::now().date_naive();
-        let weeks = WeekSheet::new(today, rows.into(), highlighter);
-        Ok(CalPager {
+impl<S: DateStyler> CalPager<S> {
+    pub(crate) fn new(today: NaiveDate, date_styler: S) -> Self {
+        let week_factory = WeekFactory::new(date_styler);
+        CalPager {
             today,
-            screen,
-            weeks,
-            left,
-            rows,
-            cols,
-            lines,
-        })
-    }
-
-    fn run(&mut self) -> io::Result<()> {
-        let normal_key_mods = KeyModifiers::NONE | KeyModifiers::SHIFT;
-        loop {
-            self.draw()?;
-            match read()? {
-                Event::Key(KeyEvent {
-                    code: KeyCode::Esc, ..
-                }) => break,
-                Event::Key(KeyEvent {
-                    code,
-                    modifiers,
-                    kind: KeyEventKind::Press,
-                    ..
-                }) if normal_key_mods.contains(modifiers) => match code {
-                    KeyCode::Char('j') | KeyCode::PageDown => self.scroll_down(),
-                    KeyCode::Char('k') | KeyCode::PageUp => self.scroll_up(),
-                    KeyCode::Char('0') => self.reset(),
-                    KeyCode::Char('z') => {
-                        for _ in 0..self.rows {
-                            self.scroll_down();
-                        }
-                    }
-                    KeyCode::Char('w') => {
-                        for _ in 0..self.rows {
-                            self.scroll_up();
-                        }
-                    }
-                    KeyCode::Char('q') => break,
-                    _ => self.screen.beep()?,
-                },
-                Event::Key(KeyEvent {
-                    kind: KeyEventKind::Press,
-                    ..
-                }) => self.screen.beep()?,
-                _ => (),
-            }
-        }
-        Ok(())
-    }
-
-    fn draw(&mut self) -> io::Result<()> {
-        self.screen.fill_clear()?;
-        self.screen.mvprint(0, self.left, HEADER.bold())?;
-        self.screen.hline(1, self.left, ACS_HLINE, WIDTH.into())?;
-        let top = self.weeks.top();
-        self.screen.mvprint(
-            HEADER_LINES,
-            self.left - YEAR_OFFSET,
-            style(top[Sun].year()).bold(),
-        )?;
-        self.screen.mvprint(
-            HEADER_LINES,
-            self.left + WIDTH + MONTH_GUTTER,
-            top[Sat].month_name().bold(),
-        )?;
-        for (i, week) in (0..).zip(self.weeks.visible_weeks()) {
-            let y = WEEK_LINES + i * HEADER_LINES;
-            if week[Sat].month() != week.pred()[Sat].month() {
-                self.screen.mvprint(
-                    y,
-                    self.left + WIDTH + MONTH_GUTTER,
-                    week[Sat].month_name().bold(),
-                )?;
-                if week[Sat].month() == 1 {
-                    if week[Sun].month() == 1 {
-                        self.screen.mvprint(
-                            y,
-                            self.left - YEAR_OFFSET,
-                            style(week[Sun].year()).bold(),
-                        )?;
-                    } else if i < self.rows - 1 {
-                        self.screen.mvprint(
-                            y + WEEK_LINES,
-                            self.left - YEAR_OFFSET,
-                            style(week[Sat].year()).bold(),
-                        )?;
-                    }
-                }
-            }
-            for (j, wd) in (0..).zip(WeekdayIter::new()) {
-                let s = if week[wd].date == self.today {
-                    format!(" [{:2}] ", week[wd].day())
-                } else {
-                    format!("  {:2}  ", week[wd].day())
-                };
-                self.screen
-                    .mvprint(y, self.left - 1 + DAY_WIDTH * j, week[wd].apply_style(s))?;
-                let mut end_of_border = false;
-                if j < (DAYS_IN_WEEK - 1) && week[wd].month() != week[wd.succ()].month() {
-                    self.screen.addch(ACS_VLINE)?;
-                    self.screen.mvprint(
-                        y - 1,
-                        self.left + VBAR_OFFSET + DAY_WIDTH * j,
-                        if i == 0 { ACS_TTEE } else { ACS_ULCORNER },
-                    )?;
-                    if i < self.rows - 1 {
-                        self.screen.mvprint(
-                            y + 1,
-                            self.left + VBAR_OFFSET + DAY_WIDTH * j,
-                            ACS_LRCORNER,
-                        )?;
-                    }
-                    end_of_border = true;
-                } else {
-                    self.screen.addch(' ')?;
-                }
-                if i < self.rows - 1 && week[wd].month() != week.succ()[wd].month() {
-                    self.screen.hline(
-                        y + 1,
-                        self.left - 1 + DAY_WIDTH * j + u16::from(j == 0),
-                        ACS_HLINE,
-                        if wd == Sat {
-                            5
-                        } else {
-                            7 - usize::from(end_of_border) - usize::from(j == 0)
-                        },
-                    )?;
-                }
-            }
-        }
-        self.screen.moveto(self.lines - 1, self.cols - 1)?;
-        self.screen.refresh()
-    }
-
-    fn scroll_up(&mut self) {
-        self.weeks.scroll_up();
-    }
-
-    fn scroll_down(&mut self) {
-        self.weeks.scroll_down();
-    }
-
-    fn reset(&mut self) {
-        self.weeks.jump_to(self.today);
-    }
-}
-
-struct WeekSheet<F> {
-    week_factory: WeekFactory<F>,
-    rows: usize,
-    capacity: usize,
-    data: VecDeque<Week>,
-    top_index: usize,
-}
-
-// IMPORTANT: In order for WeekCursor::{succ,pred}() to work, there must always
-// be at least one Week available before `top_index` and at least one week at
-// or after `top_index + rows`.
-impl<F: FnMut(NaiveDate) -> ContentStyle> WeekSheet<F> {
-    fn new(start_date: NaiveDate, rows: usize, highlighter: F) -> Self {
-        let mut week_factory = WeekFactory::new(highlighter);
-        let capacity = rows * 3;
-        let mut data = VecDeque::with_capacity(capacity);
-        Self::populate(&mut data, &mut week_factory, start_date, rows);
-        WeekSheet {
             week_factory,
-            rows,
-            capacity,
-            data,
-            top_index: 1,
+            weeks: None,
         }
     }
 
-    fn populate(
-        data: &mut VecDeque<Week>,
-        week_factory: &mut WeekFactory<F>,
-        date: NaiveDate,
-        rows: usize,
-    ) {
-        let sunday = n_days_before(date, weekday_index(date.weekday()));
-        let start_week = week_factory.make(sunday);
-        data.push_front(start_week);
-        let mut week = start_week;
-        for _ in 0..((rows / 2) + 1) {
-            week = week_factory.week_before(&week);
-            data.push_front(week);
-        }
-        week = start_week;
-        for _ in 0..((rows + 1) / 2 + 1) {
-            week = week_factory.week_after(&week);
-            data.push_back(week);
+    fn ensure_weeks(&mut self, week_qty: usize) -> &VecDeque<Week> {
+        self.weeks
+            .get_or_insert_with(|| self.week_factory.around_date(self.today, week_qty))
+        // TODO: Resize self.weeks if it doesn't match `week_qty`
+    }
+
+    pub(crate) fn jump_to_today(&mut self) {
+        if let Some(weeks) = self.weeks.as_mut() {
+            *weeks = self.week_factory.around_date(self.today, weeks.len());
         }
     }
 
-    fn scroll_up(&mut self) {
-        if self.top_index == 1 {
-            let new_top = self.week_factory.week_before(&self.data[0]);
-            if self.data.len() >= self.capacity {
-                self.data.pop_back();
+    pub(crate) fn one_week_forwards(&mut self) {
+        if let Some(weeks) = self.weeks.as_mut() {
+            if let Some(w) = weeks.back().map(|w| self.week_factory.week_after(w)) {
+                weeks.push_back(w);
+                weeks.pop_front();
             }
-            self.data.push_front(new_top);
-        } else {
-            self.top_index -= 1;
         }
     }
 
-    fn scroll_down(&mut self) {
-        self.top_index += 1;
-        if let Some(needed) = (self.top_index + self.rows + 1).checked_sub(self.data.len()) {
-            let mut week = self
-                .data
-                .back()
-                .copied()
-                .expect("self.data should always be nonempty");
-            for _ in 0..needed {
-                week = self.week_factory.week_after(&week);
-                if self.data.len() >= self.capacity {
-                    self.data.pop_front();
-                    self.top_index -= 1;
+    pub(crate) fn one_week_backwards(&mut self) {
+        if let Some(weeks) = self.weeks.as_mut() {
+            if let Some(w) = weeks.front().map(|w| self.week_factory.week_before(w)) {
+                weeks.push_front(w);
+                weeks.pop_back();
+            }
+        }
+    }
+
+    pub(crate) fn one_page_forwards(&mut self) {
+        if let Some(weeks) = self.weeks.as_mut() {
+            if let Some(w) = weeks.back().copied() {
+                *weeks = self.week_factory.weeks_after(w, weeks.len());
+            }
+        }
+    }
+
+    pub(crate) fn one_page_backwards(&mut self) {
+        if let Some(weeks) = self.weeks.as_mut() {
+            if let Some(w) = weeks.front().copied() {
+                *weeks = self.week_factory.weeks_before(w, weeks.len());
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CalPagerWidget<S> {
+    _data: PhantomData<S>,
+}
+
+impl<S> CalPagerWidget<S> {
+    pub(crate) fn new() -> CalPagerWidget<S> {
+        CalPagerWidget { _data: PhantomData }
+    }
+
+    fn weeks_for_lines(lines: u16) -> usize {
+        // ceil((lines - HEADER_LINES)/2)
+        let lines = usize::from(lines);
+        lines.saturating_sub(HEADER_LINES).saturating_add(1) / 2
+    }
+}
+
+impl<S: DateStyler> StatefulWidget for CalPagerWidget<S> {
+    type State = CalPager<S>;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        let left = (area.width.saturating_sub(MAIN_WIDTH as u16) / 2).max(LEFT_MARGIN as u16)
+            - (LEFT_MARGIN as u16);
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(left),
+                Constraint::Length((TOTAL_WIDTH as u16).min(area.width)),
+                Constraint::Min(0),
+            ])
+            .split(area);
+        let area = chunks[1];
+        let today = state.today;
+        let weeks = state.ensure_weeks(Self::weeks_for_lines(area.height));
+        let mut canvas = BufferCanvas::new(area, buf);
+        canvas.draw_header();
+        let top = weeks[0];
+        canvas.draw_year(0, top[Sun].year());
+        canvas.draw_month(0, top[Sat].month());
+        for (i, week) in weeks.iter().enumerate() {
+            if week[Sat].in_first_week_of_month() {
+                canvas.draw_month(i, week[Sat].month());
+                if week[Sat].month() == January {
+                    if week[Sun].month() == January {
+                        canvas.draw_year(i, week[Sun].year());
+                    } else if i + 1 < weeks.len() {
+                        canvas.draw_year(i + 1, week[Sat].year());
+                    }
                 }
-                self.data.push_back(week);
+            }
+            for wd in WeekdayIter::new() {
+                let s = week[wd].show(week[wd].date == today);
+                canvas.draw_day(i, wd, s);
+                if week[wd].is_last_day_of_month() {
+                    canvas.draw_month_border(i, wd);
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct BufferCanvas<'a> {
+    area: Rect,
+    buf: &'a mut Buffer,
+}
+
+impl<'a> BufferCanvas<'a> {
+    fn new(area: Rect, buf: &'a mut Buffer) -> Self {
+        Self { area, buf }
+    }
+
+    fn draw_header(&mut self) {
+        self.mvprint(0, LEFT_MARGIN, HEADER, Some(Style::new().bold()));
+        self.hline(1, LEFT_MARGIN, ACS_HLINE, MAIN_WIDTH);
+    }
+
+    fn draw_year(&mut self, week_no: usize, year: i32) {
+        self.mvprint(
+            week_no * WEEK_LINES + HEADER_LINES,
+            0,
+            year.to_string(),
+            Some(Style::new().bold()),
+        );
+    }
+
+    fn draw_month(&mut self, week_no: usize, month: Month) {
+        self.mvprint(
+            week_no * WEEK_LINES + HEADER_LINES,
+            LEFT_MARGIN + MAIN_WIDTH + MONTH_GUTTER,
+            month.name(),
+            Some(Style::new().bold()),
+        );
+    }
+
+    fn draw_day(&mut self, week_no: usize, wd: Weekday, s: Span<'_>) {
+        self.mvprint(
+            week_no * WEEK_LINES + HEADER_LINES,
+            LEFT_MARGIN + DAY_WIDTH * wd.index0(),
+            s.content,
+            Some(s.style),
+        );
+    }
+
+    // `week_no` and `wd` specify the "coordinates" of the last day of the
+    // month after which the border is drawn
+    fn draw_month_border(&mut self, week_no: usize, wd: Weekday) {
+        let y = week_no * WEEK_LINES + HEADER_LINES;
+        let offset = DAY_WIDTH * wd.index0();
+        let bar_col = LEFT_MARGIN + offset + VBAR_OFFSET;
+        if wd != Sat {
+            self.mvaddch(y, bar_col, ACS_VLINE, None);
+            self.mvaddch(
+                y - 1,
+                bar_col,
+                if week_no == 0 { ACS_TTEE } else { ACS_ULCORNER },
+                None,
+            );
+            if week_no > 0 {
+                if let Some(length) = MAIN_WIDTH.checked_sub(offset + VBAR_OFFSET + 1) {
+                    self.hline(y - 1, bar_col + 1, ACS_HLINE, length);
+                }
+            }
+            self.mvaddch(y + 1, bar_col, ACS_LRCORNER, None);
+        }
+        self.hline(y + 1, LEFT_MARGIN, ACS_HLINE, offset + VBAR_OFFSET - 1);
+    }
+
+    fn mvaddch(&mut self, y: usize, x: usize, ch: char, style: Option<Style>) {
+        let Ok(y) = u16::try_from(y) else {
+            return;
+        };
+        let Ok(x) = u16::try_from(x) else {
+            return;
+        };
+        if y < self.area.height && x < self.area.width {
+            let cell = self.buf.get_mut(x + self.area.x, y + self.area.y);
+            cell.set_char(ch);
+            if let Some(st) = style {
+                cell.set_style(st);
             }
         }
     }
 
-    fn jump_to(&mut self, date: NaiveDate) {
-        self.data.clear();
-        Self::populate(&mut self.data, &mut self.week_factory, date, self.rows);
-        self.top_index = 1;
-    }
-
-    fn top(&self) -> &Week {
-        &self.data[self.top_index]
-    }
-
-    fn visible_weeks(&self) -> VisibleWeeks<'_, F> {
-        VisibleWeeks::new(self)
-    }
-}
-
-struct WeekFactory<F>(F);
-
-impl<F: FnMut(NaiveDate) -> ContentStyle> WeekFactory<F> {
-    fn new(highlighter: F) -> Self {
-        WeekFactory(highlighter)
-    }
-
-    fn make(&mut self, sunday: NaiveDate) -> Week {
-        Week::new(sunday, &mut self.0)
-    }
-
-    fn week_before(&mut self, week: &Week) -> Week {
-        self.make(n_days_before(*week[Sun], 7))
-    }
-
-    fn week_after(&mut self, week: &Week) -> Week {
-        self.make(n_days_after(*week[Sun], 7))
-    }
-}
-
-struct VisibleWeeks<'a, F> {
-    week_sheet: &'a WeekSheet<F>,
-    inner: Range<usize>,
-}
-
-impl<'a, F> VisibleWeeks<'a, F> {
-    fn new(week_sheet: &'a WeekSheet<F>) -> Self {
-        let start = week_sheet.top_index;
-        let end = start + week_sheet.rows;
-        let inner = start..end;
-        VisibleWeeks { week_sheet, inner }
-    }
-}
-
-impl<'a, F> Iterator for VisibleWeeks<'a, F> {
-    type Item = WeekCursor<'a, F>;
-
-    fn next(&mut self) -> Option<WeekCursor<'a, F>> {
-        let i = self.inner.next()?;
-        Some(WeekCursor::new(self.week_sheet, i))
-    }
-}
-
-struct WeekCursor<'a, F> {
-    week_sheet: &'a WeekSheet<F>,
-    index: usize,
-}
-
-impl<'a, F> WeekCursor<'a, F> {
-    fn new(week_sheet: &'a WeekSheet<F>, index: usize) -> Self {
-        WeekCursor { week_sheet, index }
-    }
-
-    fn succ(&self) -> &Week {
-        &self.week_sheet.data[self.index + 1]
-    }
-
-    fn pred(&self) -> &Week {
-        &self.week_sheet.data[self.index - 1]
-    }
-}
-
-impl<'a, F> Deref for WeekCursor<'a, F> {
-    type Target = Week;
-
-    fn deref(&self) -> &Week {
-        &self.week_sheet.data[self.index]
-    }
-}
-
-struct WeekdayIter(Option<Weekday>);
-
-impl WeekdayIter {
-    fn new() -> Self {
-        WeekdayIter(Some(Sun))
-    }
-}
-
-impl Iterator for WeekdayIter {
-    type Item = Weekday;
-
-    fn next(&mut self) -> Option<Weekday> {
-        let r = self.0;
-        if let Some(wd) = r {
-            let wd = wd.succ();
-            if wd == Sun {
-                self.0 = None;
-            } else {
-                self.0 = Some(wd);
-            }
+    fn mvprint<S: AsRef<str>>(&mut self, y: usize, x: usize, s: S, style: Option<Style>) {
+        let Ok(y) = u16::try_from(y) else {
+            return;
+        };
+        let Ok(x) = u16::try_from(x) else {
+            return;
+        };
+        // TODO: Guard against any part of the string being out of the buffer's
+        // area, which causes a panic
+        if y < self.area.height && x < self.area.width {
+            self.buf.set_string(
+                x + self.area.x,
+                y + self.area.y,
+                s,
+                style.unwrap_or_default(),
+            );
         }
-        r
     }
-}
 
-pub fn calendar_pager<W: Write, F: FnMut(NaiveDate) -> ContentStyle>(
-    screen: Screen<W>,
-    highlighter: F,
-) -> io::Result<()> {
-    CalPager::new(screen, highlighter)?.run()
-}
-
-fn n_days_after(mut date: NaiveDate, n: usize) -> NaiveDate {
-    for _ in 0..n {
-        date = date.succ_opt().expect("Reached end of calendar");
+    fn hline(&mut self, y: usize, x: usize, ch: char, length: usize) {
+        self.mvprint(y, x, String::from(ch).repeat(length), None)
     }
-    date
-}
-
-fn n_days_before(mut date: NaiveDate, n: usize) -> NaiveDate {
-    for _ in 0..n {
-        date = date.pred_opt().expect("Reached beginning of calendar");
-    }
-    date
-}
-
-fn weekday_index(wd: Weekday) -> usize {
-    wd.num_days_from_sunday()
-        .try_into()
-        .expect("number of days from Sunday should fit in a usize")
 }

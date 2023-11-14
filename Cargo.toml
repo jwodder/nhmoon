@@ -7,6 +7,5 @@ edition = "2021"
 chrono = "0.4.24"
 crossterm = "0.27.0"
 num-traits = "0.2.15"
-
-[features]
-log-panic = []
+ratatui = { version = "0.24.0", default-features = false, features = ["crossterm"] }
+thiserror = "1.0.50"
