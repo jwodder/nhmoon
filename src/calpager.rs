@@ -225,24 +225,23 @@ impl<'a> BufferCanvas<'a> {
         let offset = DAY_WIDTH * wd.index0();
         let bar_col = LEFT_MARGIN + offset + VBAR_OFFSET;
         if wd != Sat {
-            self.mvaddch(y, bar_col, ACS_VLINE, None);
+            self.mvaddch(y, bar_col, ACS_VLINE);
             self.mvaddch(
                 y - 1,
                 bar_col,
                 if week_no == 0 { ACS_TTEE } else { ACS_ULCORNER },
-                None,
             );
             if week_no > 0 {
                 if let Some(length) = MAIN_WIDTH.checked_sub(offset + VBAR_OFFSET + 1) {
                     self.hline(y - 1, bar_col + 1, ACS_HLINE, length);
                 }
             }
-            self.mvaddch(y + 1, bar_col, ACS_LRCORNER, None);
+            self.mvaddch(y + 1, bar_col, ACS_LRCORNER);
         }
         self.hline(y + 1, LEFT_MARGIN, ACS_HLINE, offset + VBAR_OFFSET);
     }
 
-    fn mvaddch(&mut self, y: usize, x: usize, ch: char, style: Option<Style>) {
+    fn mvaddch(&mut self, y: usize, x: usize, ch: char) {
         let Ok(y) = u16::try_from(y) else {
             return;
         };
@@ -250,11 +249,9 @@ impl<'a> BufferCanvas<'a> {
             return;
         };
         if y < self.area.height && x < self.area.width {
-            let cell = self.buf.get_mut(x + self.area.x, y + self.area.y);
-            cell.set_char(ch);
-            if let Some(st) = style {
-                cell.set_style(st);
-            }
+            self.buf
+                .get_mut(x + self.area.x, y + self.area.y)
+                .set_char(ch);
         }
     }
 
