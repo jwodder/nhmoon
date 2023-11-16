@@ -68,11 +68,48 @@ impl StyledDate {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Week([StyledDate; 7]);
 
+impl Week {
+    pub(super) fn enumerate(&self) -> EnumerateWeek<'_> {
+        EnumerateWeek::new(self)
+    }
+}
+
 impl Index<Weekday> for Week {
     type Output = StyledDate;
 
     fn index(&self, wd: Weekday) -> &StyledDate {
         &self.0[wd.index0()]
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct EnumerateWeek<'a> {
+    week: &'a Week,
+    next_weekday: Option<Weekday>,
+}
+
+impl<'a> EnumerateWeek<'a> {
+    fn new(week: &'a Week) -> Self {
+        EnumerateWeek {
+            week,
+            next_weekday: Some(Sun),
+        }
+    }
+}
+
+impl<'a> Iterator for EnumerateWeek<'a> {
+    type Item = (Weekday, StyledDate);
+
+    fn next(&mut self) -> Option<(Weekday, StyledDate)> {
+        if let Some(wd) = self.next_weekday {
+            self.next_weekday = match wd.succ() {
+                Sun => None,
+                wd2 => Some(wd2),
+            };
+            Some((wd, self.week[wd]))
+        } else {
+            None
+        }
     }
 }
 
@@ -170,32 +207,6 @@ impl<S: DateStyler> WeekFactory<S> {
             weeks.push_back(week);
         }
         weeks
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct WeekdayIter(Option<Weekday>);
-
-impl WeekdayIter {
-    pub(super) fn new() -> Self {
-        WeekdayIter(Some(Sun))
-    }
-}
-
-impl Iterator for WeekdayIter {
-    type Item = Weekday;
-
-    fn next(&mut self) -> Option<Weekday> {
-        let r = self.0;
-        if let Some(wd) = r {
-            let wd = wd.succ();
-            if wd == Sun {
-                self.0 = None;
-            } else {
-                self.0 = Some(wd);
-            }
-        }
-        r
     }
 }
 

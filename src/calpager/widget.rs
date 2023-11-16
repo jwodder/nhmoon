@@ -1,4 +1,4 @@
-use super::weeks::{WeekdayExt, WeekdayIter};
+use super::weeks::WeekdayExt;
 use super::{CalPager, DateStyler};
 use chrono::{
     Month::{self, January},
@@ -99,10 +99,10 @@ impl<S: DateStyler> StatefulWidget for CalPagerWidget<S> {
                     }
                 }
             }
-            for wd in WeekdayIter::new() {
-                let s = week[wd].show(week[wd].date == today);
+            for (wd, date) in week.enumerate() {
+                let s = date.show(date.date == today);
                 canvas.draw_day(i, wd, s);
-                if week[wd].is_last_day_of_month() {
+                if date.is_last_day_of_month() {
                     canvas.draw_month_border(i, wd);
                 }
             }
