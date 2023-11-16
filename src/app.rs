@@ -31,13 +31,12 @@ impl<S: DateStyler> App<S> {
                 frame.render_stateful_widget(cpw, size, &mut self.calpager);
             })?;
             match self.readkey()? {
-                KeyCode::Esc => break,
-                KeyCode::Char('j') => self.scroll_down(),
-                KeyCode::Char('k') => self.scroll_up(),
-                KeyCode::Char('z') => self.page_down(),
-                KeyCode::Char('w') => self.page_up(),
-                KeyCode::Char('0') => self.reset(),
-                KeyCode::Char('q') => break,
+                KeyCode::Char('j') | KeyCode::Down => self.scroll_down(),
+                KeyCode::Char('k') | KeyCode::Up => self.scroll_up(),
+                KeyCode::Char('z') | KeyCode::PageDown => self.page_down(),
+                KeyCode::Char('w') | KeyCode::PageUp => self.page_up(),
+                KeyCode::Char('0') | KeyCode::Home => self.reset(),
+                KeyCode::Char('q') | KeyCode::Esc => break,
                 _ => self.beep()?,
             }
         }
