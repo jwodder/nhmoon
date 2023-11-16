@@ -1,14 +1,11 @@
+use super::DateStyler;
 use chrono::{naive::NaiveDate, Datelike, Month, Weekday, Weekday::*};
 use num_traits::cast::FromPrimitive;
 use ratatui::{style::Style, text::Span};
 use std::collections::VecDeque;
 use std::ops::Index;
 
-pub(crate) trait DateStyler {
-    fn date_style(&self, date: NaiveDate) -> Style;
-}
-
-pub(crate) trait WeekdayExt {
+pub(super) trait WeekdayExt {
     fn index0(&self) -> usize;
     fn index1(&self) -> usize;
 }
@@ -28,37 +25,37 @@ impl WeekdayExt for Weekday {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct StyledDate {
+pub(super) struct StyledDate {
     pub(crate) date: NaiveDate,
     pub(crate) style: Style,
 }
 
 impl StyledDate {
-    pub(crate) fn year(&self) -> i32 {
+    pub(super) fn year(&self) -> i32 {
         self.date.year()
     }
 
-    pub(crate) fn month(&self) -> Month {
+    pub(super) fn month(&self) -> Month {
         Month::from_u32(self.date.month())
             .expect("converting a month number to a Month should not fail")
     }
 
-    pub(crate) fn day(&self) -> u32 {
+    pub(super) fn day(&self) -> u32 {
         self.date.day()
     }
 
-    pub(crate) fn is_last_day_of_month(&self) -> bool {
+    pub(super) fn is_last_day_of_month(&self) -> bool {
         match self.date.succ_opt() {
             Some(tomorrow) => self.date.month() != tomorrow.month(),
             None => true,
         }
     }
 
-    pub(crate) fn in_first_week_of_month(&self) -> bool {
+    pub(super) fn in_first_week_of_month(&self) -> bool {
         (self.date.day() as usize) <= self.date.weekday().index1()
     }
 
-    pub(crate) fn show(&self, is_today: bool) -> Span<'static> {
+    pub(super) fn show(&self, is_today: bool) -> Span<'static> {
         let s = if is_today {
             format!("[{:2}]", self.day())
         } else {
@@ -69,7 +66,7 @@ impl StyledDate {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct Week([StyledDate; 7]);
+pub(super) struct Week([StyledDate; 7]);
 
 impl Index<Weekday> for Week {
     type Output = StyledDate;
@@ -80,14 +77,14 @@ impl Index<Weekday> for Week {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(crate) struct WeekFactory<S>(S);
+pub(super) struct WeekFactory<S>(S);
 
 impl<S: DateStyler> WeekFactory<S> {
-    pub(crate) fn new(styler: S) -> Self {
+    pub(super) fn new(styler: S) -> Self {
         WeekFactory(styler)
     }
 
-    pub(crate) fn around_date(&self, date: NaiveDate, week_qty: usize) -> VecDeque<Week> {
+    pub(super) fn around_date(&self, date: NaiveDate, week_qty: usize) -> VecDeque<Week> {
         let mut weeks = VecDeque::with_capacity(week_qty + 1);
         let start_week = self.containing(date);
         weeks.push_front(start_week);
@@ -149,15 +146,15 @@ impl<S: DateStyler> WeekFactory<S> {
         self.make(sunday)
     }
 
-    pub(crate) fn week_before(&self, week: &Week) -> Week {
+    pub(super) fn week_before(&self, week: &Week) -> Week {
         self.make(n_days_before(week[Sun].date, 7))
     }
 
-    pub(crate) fn week_after(&self, week: &Week) -> Week {
+    pub(super) fn week_after(&self, week: &Week) -> Week {
         self.make(n_days_after(week[Sun].date, 7))
     }
 
-    pub(crate) fn weeks_before(&self, mut week: Week, qty: usize) -> VecDeque<Week> {
+    pub(super) fn weeks_before(&self, mut week: Week, qty: usize) -> VecDeque<Week> {
         let mut weeks = VecDeque::with_capacity(qty + 1);
         for _ in 0..qty {
             week = self.week_before(&week);
@@ -166,7 +163,7 @@ impl<S: DateStyler> WeekFactory<S> {
         weeks
     }
 
-    pub(crate) fn weeks_after(&self, mut week: Week, qty: usize) -> VecDeque<Week> {
+    pub(super) fn weeks_after(&self, mut week: Week, qty: usize) -> VecDeque<Week> {
         let mut weeks = VecDeque::with_capacity(qty + 1);
         for _ in 0..qty {
             week = self.week_after(&week);
@@ -177,10 +174,10 @@ impl<S: DateStyler> WeekFactory<S> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct WeekdayIter(Option<Weekday>);
+pub(super) struct WeekdayIter(Option<Weekday>);
 
 impl WeekdayIter {
-    pub(crate) fn new() -> Self {
+    pub(super) fn new() -> Self {
         WeekdayIter(Some(Sun))
     }
 }

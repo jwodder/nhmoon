@@ -1,4 +1,5 @@
-use crate::weeks::*;
+mod weeks;
+use self::weeks::*;
 use chrono::{
     naive::NaiveDate,
     Month::{self, January},
@@ -49,6 +50,10 @@ const ACS_VLINE: char = '│';
 const ACS_TTEE: char = '┬';
 const ACS_ULCORNER: char = '┌';
 const ACS_LRCORNER: char = '┘';
+
+pub(crate) trait DateStyler {
+    fn date_style(&self, date: NaiveDate) -> Style;
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CalPager<S> {

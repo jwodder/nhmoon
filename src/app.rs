@@ -1,5 +1,4 @@
-use crate::calpager::{CalPager, CalPagerWidget};
-use crate::weeks::DateStyler;
+use crate::calpager::{CalPager, CalPagerWidget, DateStyler};
 use crossterm::{
     event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,

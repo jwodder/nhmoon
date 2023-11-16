@@ -1,4 +1,4 @@
-use crate::weeks::DateStyler;
+use crate::calpager::DateStyler;
 use chrono::{naive::NaiveDate, Datelike};
 use ratatui::style::{Style, Stylize};
 

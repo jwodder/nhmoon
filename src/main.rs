@@ -1,7 +1,6 @@
 mod app;
 mod calpager;
 mod moon;
-mod weeks;
 use crate::app::App;
 use crate::calpager::CalPager;
 use crate::moon::Phoon;
