@@ -239,7 +239,7 @@ impl<'a> BufferCanvas<'a> {
             }
             self.mvaddch(y + 1, bar_col, ACS_LRCORNER, None);
         }
-        self.hline(y + 1, LEFT_MARGIN, ACS_HLINE, offset + VBAR_OFFSET - 1);
+        self.hline(y + 1, LEFT_MARGIN, ACS_HLINE, offset + VBAR_OFFSET);
     }
 
     fn mvaddch(&mut self, y: usize, x: usize, ch: char, style: Option<Style>) {
