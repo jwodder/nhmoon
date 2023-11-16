@@ -8,12 +8,6 @@ pub(crate) trait DateStyler {
     fn date_style(&self, date: NaiveDate) -> Style;
 }
 
-impl<T: DateStyler + ?Sized> DateStyler for &T {
-    fn date_style(&self, date: NaiveDate) -> Style {
-        (**self).date_style(date)
-    }
-}
-
 pub(crate) trait WeekdayExt {
     fn index0(&self) -> usize;
     fn index1(&self) -> usize;
@@ -77,16 +71,6 @@ impl StyledDate {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Week([StyledDate; 7]);
 
-impl Week {
-    fn new<S: DateStyler>(sunday: NaiveDate, styler: S) -> Self {
-        Week(std::array::from_fn(move |i| {
-            let date = n_days_after(sunday, i);
-            let style = styler.date_style(date);
-            StyledDate { date, style }
-        }))
-    }
-}
-
 impl Index<Weekday> for Week {
     type Output = StyledDate;
 
@@ -121,7 +105,43 @@ impl<S: DateStyler> WeekFactory<S> {
     }
 
     fn make(&self, sunday: NaiveDate) -> Week {
-        Week::new(sunday, &self.0)
+        // TODO: Replace these unwrap()'s with something that returns Result!
+        let monday = sunday.succ_opt().unwrap();
+        let tuesday = monday.succ_opt().unwrap();
+        let wednesday = tuesday.succ_opt().unwrap();
+        let thursday = wednesday.succ_opt().unwrap();
+        let friday = thursday.succ_opt().unwrap();
+        let saturday = friday.succ_opt().unwrap();
+        Week([
+            StyledDate {
+                date: sunday,
+                style: self.0.date_style(sunday),
+            },
+            StyledDate {
+                date: monday,
+                style: self.0.date_style(monday),
+            },
+            StyledDate {
+                date: tuesday,
+                style: self.0.date_style(tuesday),
+            },
+            StyledDate {
+                date: wednesday,
+                style: self.0.date_style(wednesday),
+            },
+            StyledDate {
+                date: thursday,
+                style: self.0.date_style(thursday),
+            },
+            StyledDate {
+                date: friday,
+                style: self.0.date_style(friday),
+            },
+            StyledDate {
+                date: saturday,
+                style: self.0.date_style(saturday),
+            },
+        ])
     }
 
     fn containing(&self, date: NaiveDate) -> Week {
