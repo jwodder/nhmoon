@@ -13,53 +13,69 @@ type CrossTerminal = Terminal<CrosstermBackend<io::Stdout>>;
 pub(crate) struct App<S> {
     terminal: CrossTerminal,
     calpager: CalPager<S>,
+    quitting: bool,
 }
 
 impl<S: DateStyler> App<S> {
     pub(crate) fn new(terminal: CrossTerminal, calpager: CalPager<S>) -> App<S> {
-        App { terminal, calpager }
+        App {
+            terminal,
+            calpager,
+            quitting: false,
+        }
     }
 
     pub(crate) fn run(mut self) -> io::Result<()> {
-        loop {
-            self.terminal.draw(|frame| {
-                let size = frame.size();
-                frame
-                    .buffer_mut()
-                    .set_style(size, Style::default().white().on_black());
-                let cpw = CalPagerWidget::<S>::new();
-                frame.render_stateful_widget(cpw, size, &mut self.calpager);
-            })?;
-            match self.readkey()? {
-                KeyCode::Char('j') | KeyCode::Down => self.scroll_down(),
-                KeyCode::Char('k') | KeyCode::Up => self.scroll_up(),
-                KeyCode::Char('z') | KeyCode::PageDown => self.page_down(),
-                KeyCode::Char('w') | KeyCode::PageUp => self.page_up(),
-                KeyCode::Char('0') | KeyCode::Home => self.reset(),
-                KeyCode::Char('q') | KeyCode::Esc => break,
-                _ => self.beep()?,
-            }
+        while !self.quitting {
+            self.draw()?;
+            self.handle_input()?;
         }
         Ok(())
     }
 
-    fn readkey(&mut self) -> io::Result<KeyCode> {
+    fn draw(&mut self) -> io::Result<()> {
+        self.terminal.draw(|frame| {
+            let size = frame.size();
+            frame
+                .buffer_mut()
+                .set_style(size, Style::default().white().on_black());
+            let cpw = CalPagerWidget::<S>::new();
+            frame.render_stateful_widget(cpw, size, &mut self.calpager);
+        })?;
+        Ok(())
+    }
+
+    fn handle_input(&mut self) -> io::Result<()> {
         let normal_modifiers = KeyModifiers::NONE | KeyModifiers::SHIFT;
-        loop {
-            if let Event::Key(KeyEvent {
-                code,
-                modifiers,
-                kind: KeyEventKind::Press,
-                ..
-            }) = read()?
-            {
-                if normal_modifiers.contains(modifiers) {
-                    return Ok(code);
-                } else {
-                    self.beep()?;
-                }
+        if let Event::Key(KeyEvent {
+            code,
+            modifiers,
+            kind: KeyEventKind::Press,
+            ..
+        }) = read()?
+        {
+            if normal_modifiers.contains(modifiers) {
+                self.handle_key(code)?;
+            } else {
+                self.beep()?;
             }
         }
+        // else: Redraw on resize, and we might as well redraw on other stuff
+        // too
+        Ok(())
+    }
+
+    fn handle_key(&mut self, key: KeyCode) -> io::Result<()> {
+        match key {
+            KeyCode::Char('j') | KeyCode::Down => self.scroll_down(),
+            KeyCode::Char('k') | KeyCode::Up => self.scroll_up(),
+            KeyCode::Char('z') | KeyCode::PageDown => self.page_down(),
+            KeyCode::Char('w') | KeyCode::PageUp => self.page_up(),
+            KeyCode::Char('0') | KeyCode::Home => self.reset(),
+            KeyCode::Char('q') | KeyCode::Esc => self.quit(),
+            _ => self.beep()?,
+        }
+        Ok(())
     }
 
     fn scroll_down(&mut self) {
@@ -80,6 +96,10 @@ impl<S: DateStyler> App<S> {
 
     fn reset(&mut self) {
         self.calpager.jump_to_today();
+    }
+
+    fn quit(&mut self) {
+        self.quitting = true;
     }
 
     fn beep(&mut self) -> io::Result<()> {
