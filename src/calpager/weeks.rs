@@ -6,18 +6,18 @@ use std::collections::VecDeque;
 use std::ops::Index;
 
 pub(super) trait WeekdayExt {
-    fn index0(&self) -> usize;
-    fn index1(&self) -> usize;
+    fn index0(&self) -> u16;
+    fn index1(&self) -> u16;
 }
 
 impl WeekdayExt for Weekday {
-    fn index0(&self) -> usize {
+    fn index0(&self) -> u16 {
         self.num_days_from_sunday()
             .try_into()
-            .expect("number of days from Sunday should fit in a usize")
+            .expect("number of days from Sunday should fit in a u16")
     }
 
-    fn index1(&self) -> usize {
+    fn index1(&self) -> u16 {
         self.number_from_sunday()
             .try_into()
             .expect("number of days from Sunday should fit in a usize")
@@ -52,7 +52,7 @@ impl StyledDate {
     }
 
     pub(super) fn in_first_week_of_month(&self) -> bool {
-        (self.date.day() as usize) <= self.date.weekday().index1()
+        self.date.day0() <= self.date.weekday().index1().into()
     }
 
     pub(super) fn show(&self, is_today: bool) -> Span<'static> {
@@ -78,7 +78,7 @@ impl Index<Weekday> for Week {
     type Output = StyledDate;
 
     fn index(&self, wd: Weekday) -> &StyledDate {
-        &self.0[wd.index0()]
+        &self.0[usize::from(wd.index0())]
     }
 }
 
@@ -179,7 +179,7 @@ impl<S: DateStyler> WeekFactory<S> {
     }
 
     fn containing(&self, date: NaiveDate) -> Week {
-        let sunday = n_days_before(date, date.weekday().index0());
+        let sunday = n_days_before(date, date.weekday().index0().into());
         self.make(sunday)
     }
 
