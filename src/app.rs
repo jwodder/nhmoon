@@ -1,6 +1,5 @@
 use crate::calpager::{CalPager, CalPagerWidget};
 use crate::weeks::DateStyler;
-use chrono::naive::NaiveDate;
 use crossterm::{
     event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
@@ -18,8 +17,7 @@ pub(crate) struct App<S> {
 }
 
 impl<S: DateStyler> App<S> {
-    pub(crate) fn new(terminal: CrossTerminal, today: NaiveDate, date_styler: S) -> App<S> {
-        let calpager = CalPager::new(today, date_styler);
+    pub(crate) fn new(terminal: CrossTerminal, calpager: CalPager<S>) -> App<S> {
         App { terminal, calpager }
     }
 

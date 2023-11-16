@@ -3,6 +3,7 @@ mod calpager;
 mod moon;
 mod weeks;
 use crate::app::App;
+use crate::calpager::CalPager;
 use crate::moon::Phoon;
 use chrono::Local;
 use crossterm::{
@@ -23,7 +24,8 @@ fn main() -> io::Result<()> {
         original_hook(panic);
     }));
 
-    let r = App::new(terminal, today, Phoon).run();
+    let calpager = CalPager::new(today, Phoon);
+    let r = App::new(terminal, calpager).run();
     reset_terminal()?;
     r
 }
