@@ -4,7 +4,7 @@ use chrono::{
     Month::{self, January},
     Weekday::{self, Sat, Sun},
 };
-use ratatui::{prelude::*, widgets::StatefulWidget};
+use ratatui::{prelude::*, widgets::*};
 use std::marker::PhantomData;
 
 static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa ";
@@ -183,14 +183,21 @@ impl<'a> BufferCanvas<'a> {
     }
 
     fn mvprint<S: AsRef<str>>(&mut self, y: u16, x: u16, s: S, style: Option<Style>) {
-        // TODO: Guard against any part of the string being out of the buffer's
-        // area, which causes a panic
         if y < self.area.height && x < self.area.width {
-            self.buf.set_string(
-                x + self.area.x,
-                y + self.area.y,
-                s,
-                style.unwrap_or_default(),
+            let text = Text::styled(s.as_ref(), style.unwrap_or_default());
+            let width = u16::try_from(text.width()).unwrap_or(u16::MAX);
+            // Using a Paragraph lets us truncate text that extends beyond the
+            // calendar's area, though we need to be sure that the Rect passed
+            // to the Paragraph is entirely within the frame lest a panic
+            // result.
+            Paragraph::new(text).render(
+                Rect {
+                    x: x + self.area.x,
+                    y: y + self.area.y,
+                    width: (self.area.width - x).min(width),
+                    height: 1,
+                },
+                self.buf,
             );
         }
     }
