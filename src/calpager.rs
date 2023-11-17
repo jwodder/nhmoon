@@ -29,13 +29,16 @@ impl<S: DateStyler> CalPager<S> {
     }
 
     fn ensure_weeks(&mut self, week_qty: usize) -> &VecDeque<Week> {
+        // If we're asked to create zero weeks, create one week instead so that
+        // `weeks` is always nonempty:
+        let week_qty = week_qty.max(1);
         if let Some(weeks) = self.weeks.as_mut() {
             match weeks.len().cmp(&week_qty) {
                 Ordering::Less => {
-                    // TODO: Avoid this unwrap!
-                    let mut extension = self
-                        .week_factory
-                        .weeks_after(*weeks.back().unwrap(), week_qty - weeks.len());
+                    let mut extension = self.week_factory.weeks_after(
+                        *weeks.back().expect("weeks should always be nonempty"),
+                        week_qty - weeks.len(),
+                    );
                     weeks.append(&mut extension);
                 }
                 Ordering::Greater => weeks.truncate(week_qty),
