@@ -1,4 +1,5 @@
 use crate::calpager::{CalPager, CalPagerWidget, DateStyler};
+use crate::help::Help;
 use crossterm::{
     event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
@@ -14,6 +15,7 @@ pub(crate) struct App<S> {
     terminal: CrossTerminal,
     calpager: CalPager<S>,
     quitting: bool,
+    helping: bool,
 }
 
 impl<S: DateStyler> App<S> {
@@ -22,6 +24,7 @@ impl<S: DateStyler> App<S> {
             terminal,
             calpager,
             quitting: false,
+            helping: false,
         }
     }
 
@@ -36,11 +39,13 @@ impl<S: DateStyler> App<S> {
     fn draw(&mut self) -> io::Result<()> {
         self.terminal.draw(|frame| {
             let size = frame.size();
-            frame
-                .buffer_mut()
-                .set_style(size, Style::default().white().on_black());
+            let defstyle = Style::default().white().on_black();
+            frame.buffer_mut().set_style(size, defstyle);
             let cpw = CalPagerWidget::<S>::new();
             frame.render_stateful_widget(cpw, size, &mut self.calpager);
+            if self.helping {
+                frame.render_widget(Help(defstyle), size);
+            }
         })?;
         Ok(())
     }
@@ -66,6 +71,10 @@ impl<S: DateStyler> App<S> {
     }
 
     fn handle_key(&mut self, key: KeyCode) -> io::Result<()> {
+        if self.helping {
+            self.helping = false;
+            return Ok(());
+        }
         match key {
             KeyCode::Char('j') | KeyCode::Down => self.scroll_down(),
             KeyCode::Char('k') | KeyCode::Up => self.scroll_up(),
@@ -73,6 +82,7 @@ impl<S: DateStyler> App<S> {
             KeyCode::Char('w') | KeyCode::PageUp => self.page_up(),
             KeyCode::Char('0') | KeyCode::Home => self.reset(),
             KeyCode::Char('q') | KeyCode::Esc => self.quit(),
+            KeyCode::Char('?') => self.helping = true,
             _ => self.beep()?,
         }
         Ok(())

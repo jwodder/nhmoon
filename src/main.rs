@@ -1,5 +1,6 @@
 mod app;
 mod calpager;
+mod help;
 mod moon;
 use crate::app::App;
 use crate::calpager::CalPager;
