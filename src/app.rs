@@ -8,7 +8,7 @@ use crossterm::{
 use ratatui::prelude::*;
 use std::io;
 
-type CrossTerminal = Terminal<CrosstermBackend<io::Stdout>>;
+pub(crate) type CrossTerminal = Terminal<CrosstermBackend<io::Stdout>>;
 
 #[derive(Debug)]
 pub(crate) struct App<S> {

@@ -2,7 +2,7 @@ mod app;
 mod calpager;
 mod help;
 mod moon;
-use crate::app::App;
+use crate::app::{App, CrossTerminal};
 use crate::calpager::CalPager;
 use crate::moon::Phoon;
 use anyhow::Context;
@@ -18,8 +18,24 @@ fn main() -> anyhow::Result<()> {
     let today = OffsetDateTime::now_local()
         .context("failed to determine local date")?
         .date();
-    let mut terminal = init_terminal().context("failed to initialize terminal")?;
-    terminal.hide_cursor().context("failed to hide cursor")?;
+    with_terminal(|mut terminal| {
+        terminal.hide_cursor().context("failed to hide cursor")?;
+        let calpager = CalPager::new(today, Phoon);
+        App::new(terminal, calpager).run()?;
+        Ok(())
+    })
+}
+
+fn with_terminal<F, T>(func: F) -> anyhow::Result<T>
+where
+    F: Fn(CrossTerminal) -> anyhow::Result<T>,
+{
+    let mut stream = io::stdout();
+    execute!(stream, EnterAlternateScreen).context("failed to start alternate screen")?;
+    if let Err(e) = enable_raw_mode() {
+        let _ = execute!(stream, LeaveAlternateScreen);
+        return Err(e).context("failed to enable raw terminal mode");
+    }
 
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic| {
@@ -27,17 +43,11 @@ fn main() -> anyhow::Result<()> {
         original_hook(panic);
     }));
 
-    let calpager = CalPager::new(today, Phoon);
-    let r = App::new(terminal, calpager).run();
+    let terminal =
+        Terminal::new(CrosstermBackend::new(stream)).context("failed to create Terminal object")?;
+    let r = func(terminal);
     reset_terminal().context("failed to reset terminal")?;
-    r.map_err(Into::into)
-}
-
-fn init_terminal() -> io::Result<Terminal<CrosstermBackend<io::Stdout>>> {
-    let mut stream = io::stdout();
-    execute!(stream, EnterAlternateScreen)?;
-    enable_raw_mode()?;
-    Terminal::new(CrosstermBackend::new(stream))
+    r
 }
 
 fn reset_terminal() -> io::Result<()> {
