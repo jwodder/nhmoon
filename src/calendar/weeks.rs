@@ -7,6 +7,7 @@ use time::Date;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct WeekWindow<S> {
     pub(super) today: Date,
+    start_date: Date,
     weeks: Option<VecDeque<Week>>,
     week_factory: WeekFactory<S>,
 }
@@ -16,9 +17,15 @@ impl<S: DateStyler> WeekWindow<S> {
         let week_factory = WeekFactory::new(date_styler);
         WeekWindow {
             today,
+            start_date: today,
             week_factory,
             weeks: None,
         }
+    }
+
+    pub(crate) fn start_date(mut self, date: Date) -> Self {
+        self.start_date = date;
+        self
     }
 
     pub(super) fn ensure_weeks(&mut self, week_qty: usize) -> &VecDeque<Week> {
@@ -39,7 +46,7 @@ impl<S: DateStyler> WeekWindow<S> {
             }
         }
         self.weeks
-            .get_or_insert_with(|| self.week_factory.around_date(self.today, week_qty))
+            .get_or_insert_with(|| self.week_factory.around_date(self.start_date, week_qty))
     }
 
     pub(crate) fn jump_to_today(&mut self) {

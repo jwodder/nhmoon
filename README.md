@@ -15,8 +15,21 @@ Screenshot of the program on startup on 2023 November 18:
 
 ![Screenshot of the program](screenshot.png)
 
+Usage
+=====
+
+    nhmoon [<date>]
+
+Opens a view of a proleptic Gregorian calendar centered on the given date, or
+centered on the current date if no date is given.  Dates are given in the form
+`YYYY-MM-DD` using [astronomical year numbering][years].  Only dates from
+10,000 BC (-9999 in astronomical year numbering) through 9,999 AD are
+supported.
+
+[years]: https://en.wikipedia.org/wiki/Astronomical_year_numbering
+
 Key Bindings
-============
+------------
 
 | Key                                | Command              |
 | ---------------------------------- | -------------------- |
