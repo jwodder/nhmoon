@@ -11,14 +11,16 @@ enum Phase {
 
 impl Phase {
     fn for_date(date: Date) -> Phase {
-        // Will give wrong results pre-1900
-        let year = date.year().abs_diff(1900);
+        // This is inaccurate for 2,147,481,750 BC and earlier, but I don't
+        // think the `time` library is going to be supporting dates that old
+        // any time soon.
+        let year = date.year().saturating_sub(1900);
         let goldn = (year % 19) + 1;
         let mut epact = (11 * goldn + 18) % 30;
         if (epact == 25 && goldn > 11) || epact == 24 {
             epact += 1;
         }
-        match (((((u32::from(date.ordinal()) - 1 + epact) * 6) + 11) % 177) / 22) & 7 {
+        match (((((i32::from(date.ordinal()) - 1 + epact) * 6) + 11) % 177) / 22) & 7 {
             0 => Phase::New,
             4 => Phase::Full,
             _ => Phase::Normal,
