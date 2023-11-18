@@ -1,11 +1,11 @@
 use super::weeks::WeekdayExt;
 use super::{CalPager, DateStyler};
-use chrono::{
-    Month::{self, January},
-    Weekday::{self, Sat, Sun},
-};
 use ratatui::{prelude::*, widgets::*};
 use std::marker::PhantomData;
+use time::{
+    Month::{self, January},
+    Weekday::{self, Saturday, Sunday},
+};
 
 static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa ";
 
@@ -84,16 +84,16 @@ impl<S: DateStyler> StatefulWidget for CalPagerWidget<S> {
         let mut canvas = BufferCanvas::new(area, buf);
         canvas.draw_header();
         let top = weeks[0];
-        canvas.draw_year(0, top[Sun].year());
-        canvas.draw_month(0, top[Sat].month());
+        canvas.draw_year(0, top[Sunday].year());
+        canvas.draw_month(0, top[Saturday].month());
         for (i, week) in std::iter::zip(0u16.., weeks) {
-            if week[Sat].in_first_week_of_month() {
-                canvas.draw_month(i, week[Sat].month());
-                if week[Sat].month() == January {
-                    if week[Sun].month() == January {
-                        canvas.draw_year(i, week[Sun].year());
+            if week[Saturday].in_first_week_of_month() {
+                canvas.draw_month(i, week[Saturday].month());
+                if week[Saturday].month() == January {
+                    if week[Sunday].month() == January {
+                        canvas.draw_year(i, week[Sunday].year());
                     } else if usize::from(i + 1) < weeks.len() {
-                        canvas.draw_year(i + 1, week[Sat].year());
+                        canvas.draw_year(i + 1, week[Saturday].year());
                     }
                 }
             }
@@ -137,7 +137,7 @@ impl<'a> BufferCanvas<'a> {
         self.mvprint(
             week_no * WEEK_LINES + HEADER_LINES,
             LEFT_MARGIN + MAIN_WIDTH + MONTH_GUTTER,
-            month.name(),
+            month.to_string(),
             Some(Style::new().bold()),
         );
     }
@@ -157,7 +157,7 @@ impl<'a> BufferCanvas<'a> {
         let y = week_no * WEEK_LINES + HEADER_LINES;
         let offset = DAY_WIDTH * wd.index0();
         let bar_col = LEFT_MARGIN + offset + VBAR_OFFSET;
-        if wd != Sat {
+        if wd != Saturday {
             self.mvaddch(y, bar_col, ACS_VLINE);
             self.mvaddch(
                 y - 1,

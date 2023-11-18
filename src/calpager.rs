@@ -2,24 +2,24 @@ mod weeks;
 mod widget;
 use self::weeks::*;
 pub(crate) use self::widget::CalPagerWidget;
-use chrono::naive::NaiveDate;
 use ratatui::style::Style;
 use std::cmp::Ordering;
 use std::collections::VecDeque;
+use time::Date;
 
 pub(crate) trait DateStyler {
-    fn date_style(&self, date: NaiveDate) -> Style;
+    fn date_style(&self, date: Date) -> Style;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CalPager<S> {
-    today: NaiveDate,
+    today: Date,
     weeks: Option<VecDeque<Week>>,
     week_factory: WeekFactory<S>,
 }
 
 impl<S: DateStyler> CalPager<S> {
-    pub(crate) fn new(today: NaiveDate, date_styler: S) -> Self {
+    pub(crate) fn new(today: Date, date_styler: S) -> Self {
         let week_factory = WeekFactory::new(date_styler);
         CalPager {
             today,

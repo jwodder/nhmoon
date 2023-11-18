@@ -1,9 +1,8 @@
 use super::DateStyler;
-use chrono::{naive::NaiveDate, Datelike, Month, Weekday, Weekday::*};
-use num_traits::cast::FromPrimitive;
 use ratatui::{style::Style, text::Span};
 use std::collections::VecDeque;
 use std::ops::Index;
+use time::{Date, Duration, Month, Weekday, Weekday::*};
 
 pub(super) trait WeekdayExt {
     fn index0(&self) -> u16;
@@ -12,21 +11,17 @@ pub(super) trait WeekdayExt {
 
 impl WeekdayExt for Weekday {
     fn index0(&self) -> u16 {
-        self.num_days_from_sunday()
-            .try_into()
-            .expect("number of days from Sunday should fit in a u16")
+        self.number_days_from_sunday().into()
     }
 
     fn index1(&self) -> u16 {
-        self.number_from_sunday()
-            .try_into()
-            .expect("number of days from Sunday should fit in a usize")
+        self.number_from_sunday().into()
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct StyledDate {
-    pub(crate) date: NaiveDate,
+    pub(crate) date: Date,
     pub(crate) style: Style,
 }
 
@@ -36,23 +31,22 @@ impl StyledDate {
     }
 
     pub(super) fn month(&self) -> Month {
-        Month::from_u32(self.date.month())
-            .expect("converting a month number to a Month should not fail")
+        self.date.month()
     }
 
-    pub(super) fn day(&self) -> u32 {
+    pub(super) fn day(&self) -> u8 {
         self.date.day()
     }
 
     pub(super) fn is_last_day_of_month(&self) -> bool {
-        match self.date.succ_opt() {
+        match self.date.next_day() {
             Some(tomorrow) => self.date.month() != tomorrow.month(),
             None => true,
         }
     }
 
     pub(super) fn in_first_week_of_month(&self) -> bool {
-        self.date.day0() <= self.date.weekday().index1().into()
+        in_first_week_of_month(self.date)
     }
 
     pub(super) fn show(&self, is_today: bool) -> Span<'static> {
@@ -92,7 +86,7 @@ impl<'a> EnumerateWeek<'a> {
     fn new(week: &'a Week) -> Self {
         EnumerateWeek {
             week,
-            next_weekday: Some(Sun),
+            next_weekday: Some(Sunday),
         }
     }
 }
@@ -102,8 +96,8 @@ impl<'a> Iterator for EnumerateWeek<'a> {
 
     fn next(&mut self) -> Option<(Weekday, StyledDate)> {
         if let Some(wd) = self.next_weekday {
-            self.next_weekday = match wd.succ() {
-                Sun => None,
+            self.next_weekday = match wd.next() {
+                Sunday => None,
                 wd2 => Some(wd2),
             };
             Some((wd, self.week[wd]))
@@ -121,7 +115,7 @@ impl<S: DateStyler> WeekFactory<S> {
         WeekFactory(styler)
     }
 
-    pub(super) fn around_date(&self, date: NaiveDate, week_qty: usize) -> VecDeque<Week> {
+    pub(super) fn around_date(&self, date: Date, week_qty: usize) -> VecDeque<Week> {
         let mut weeks = VecDeque::with_capacity(week_qty + 1);
         let start_week = self.containing(date);
         weeks.push_front(start_week);
@@ -138,14 +132,14 @@ impl<S: DateStyler> WeekFactory<S> {
         weeks
     }
 
-    fn make(&self, sunday: NaiveDate) -> Week {
+    fn make(&self, sunday: Date) -> Week {
         // TODO: Replace these unwrap()'s with something that returns Result!
-        let monday = sunday.succ_opt().unwrap();
-        let tuesday = monday.succ_opt().unwrap();
-        let wednesday = tuesday.succ_opt().unwrap();
-        let thursday = wednesday.succ_opt().unwrap();
-        let friday = thursday.succ_opt().unwrap();
-        let saturday = friday.succ_opt().unwrap();
+        let monday = sunday.next_day().unwrap();
+        let tuesday = monday.next_day().unwrap();
+        let wednesday = tuesday.next_day().unwrap();
+        let thursday = wednesday.next_day().unwrap();
+        let friday = thursday.next_day().unwrap();
+        let saturday = friday.next_day().unwrap();
         Week([
             StyledDate {
                 date: sunday,
@@ -178,17 +172,17 @@ impl<S: DateStyler> WeekFactory<S> {
         ])
     }
 
-    fn containing(&self, date: NaiveDate) -> Week {
+    fn containing(&self, date: Date) -> Week {
         let sunday = n_days_before(date, date.weekday().index0().into());
         self.make(sunday)
     }
 
     pub(super) fn week_before(&self, week: &Week) -> Week {
-        self.make(n_days_before(week[Sun].date, 7))
+        self.make(n_days_before(week[Sunday].date, 7))
     }
 
     pub(super) fn week_after(&self, week: &Week) -> Week {
-        self.make(n_days_after(week[Sun].date, 7))
+        self.make(n_days_after(week[Sunday].date, 7))
     }
 
     pub(super) fn weeks_before(&self, mut week: Week, qty: usize) -> VecDeque<Week> {
@@ -210,16 +204,40 @@ impl<S: DateStyler> WeekFactory<S> {
     }
 }
 
-fn n_days_after(mut date: NaiveDate, n: usize) -> NaiveDate {
-    for _ in 0..n {
-        date = date.succ_opt().expect("Reached end of calendar");
-    }
-    date
+fn n_days_after(date: Date, n: i64) -> Date {
+    date.checked_add(Duration::days(n))
+        .expect("Reached end of calendar")
 }
 
-fn n_days_before(mut date: NaiveDate, n: usize) -> NaiveDate {
-    for _ in 0..n {
-        date = date.pred_opt().expect("Reached beginning of calendar");
+fn n_days_before(date: Date, n: i64) -> Date {
+    date.checked_sub(Duration::days(n))
+        .expect("Reached beginning of calendar")
+}
+
+fn in_first_week_of_month(date: Date) -> bool {
+    date.day() <= date.weekday().number_from_sunday()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+    use time::Month::*;
+
+    #[rstest]
+    #[case(2023, October, 1, true)]
+    #[case(2023, October, 7, true)]
+    #[case(2023, October, 8, false)]
+    #[case(2023, November, 1, true)]
+    #[case(2023, November, 4, true)]
+    #[case(2023, November, 5, false)]
+    fn test_in_first_week_of_month(
+        #[case] year: i32,
+        #[case] month: Month,
+        #[case] day: u8,
+        #[case] r: bool,
+    ) {
+        let date = Date::from_calendar_date(year, month, day).unwrap();
+        assert_eq!(in_first_week_of_month(date), r);
     }
-    date
 }
