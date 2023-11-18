@@ -5,6 +5,7 @@ use ratatui::{prelude::*, widgets::*};
 use std::marker::PhantomData;
 use std::num::NonZeroUsize;
 use time::{
+    Date,
     Month::{self, January},
     Weekday::{self, Saturday},
 };
@@ -109,6 +110,16 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
                 canvas.draw_day(i, wd, s);
                 if date.is_last_day_of_month() {
                     canvas.draw_month_border(i, wd);
+                } else if date.date == Date::MIN {
+                    let weekday_before_time = wd.previous();
+                    // For time::Date's default bounds, `weekday_before_time`
+                    // is actually a Sunday, but we should be ready if the
+                    // bounds change.
+                    if weekday_before_time != Saturday {
+                        canvas.draw_month_border(i, weekday_before_time);
+                    } else if i > 0 {
+                        canvas.draw_month_border(i - 1, weekday_before_time);
+                    }
                 }
             }
         }
