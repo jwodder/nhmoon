@@ -8,16 +8,11 @@ const DAYS_IN_WEEK: usize = 7;
 
 pub(super) trait WeekdayExt {
     fn index0(&self) -> u16;
-    fn index1(&self) -> u16;
 }
 
 impl WeekdayExt for Weekday {
     fn index0(&self) -> u16 {
         self.number_days_from_sunday().into()
-    }
-
-    fn index1(&self) -> u16 {
-        self.number_from_sunday().into()
     }
 }
 
