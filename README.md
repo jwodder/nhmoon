@@ -5,8 +5,8 @@
 
 `nhmoon` is a Rust program for viewing & scrolling through a slice of the
 calendar in your terminal.  Days with [new or full moons][moon] in [NetHack][]
-are highlighted, though the code can easily be adjusted to highlight based on
-different criteria instead.
+are highlighted, though the code can easily be adjusted to use different
+highlighting criteria instead.
 
 [moon]: https://nethackwiki.com/wiki/Time#Moon_phase_and_date
 [NetHack]: https://www.nethack.org
