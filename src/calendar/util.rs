@@ -1,8 +1,10 @@
 use super::DateStyler;
 use ratatui::{style::Style, text::Span};
 use std::collections::VecDeque;
-use std::ops::Index;
-use time::{Date, Duration, Month, Weekday, Weekday::*};
+use std::iter::successors;
+use time::{Date, Month, Weekday, Weekday::*};
+
+const DAYS_IN_WEEK: usize = 7;
 
 pub(super) trait WeekdayExt {
     fn index0(&self) -> u16;
@@ -45,10 +47,6 @@ impl StyledDate {
         }
     }
 
-    pub(super) fn in_first_week_of_month(&self) -> bool {
-        in_first_week_of_month(self.date)
-    }
-
     pub(super) fn show(&self, is_today: bool) -> Span<'static> {
         let s = if is_today {
             format!("[{:2}]", self.day())
@@ -60,19 +58,50 @@ impl StyledDate {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct Week([StyledDate; 7]);
+// Invariant: At least one element of the array is Some
+pub(super) struct Week([Option<StyledDate>; DAYS_IN_WEEK]);
 
 impl Week {
+    fn new(date: StyledDate) -> Self {
+        let mut this = Week([None; DAYS_IN_WEEK]);
+        this.set(date);
+        this
+    }
+
+    fn set(&mut self, date: StyledDate) {
+        let i = usize::from(date.date.weekday().index0());
+        assert!(i < DAYS_IN_WEEK);
+        self.0[i] = Some(date);
+    }
+
     pub(super) fn enumerate(&self) -> EnumerateWeek<'_> {
         EnumerateWeek::new(self)
     }
-}
 
-impl Index<Weekday> for Week {
-    type Output = StyledDate;
+    pub(super) fn get(&self, wd: Weekday) -> Option<StyledDate> {
+        self.0.get(usize::from(wd.index0())).copied().flatten()
+    }
 
-    fn index(&self, wd: Weekday) -> &StyledDate {
-        &self.0[usize::from(wd.index0())]
+    pub(super) fn has_month_start(&self) -> bool {
+        self.0.iter().flatten().any(|sd| sd.date.day() == 1)
+    }
+
+    pub(super) fn first_ym(&self) -> (i32, Month) {
+        self.0
+            .iter()
+            .flatten()
+            .map(|sd| (sd.year(), sd.month()))
+            .next()
+            .expect("Week should contain at least one Some")
+    }
+
+    pub(super) fn last_ym(&self) -> (i32, Month) {
+        self.0
+            .iter()
+            .flatten()
+            .map(|sd| (sd.year(), sd.month()))
+            .last()
+            .expect("Week should contain at least one Some")
     }
 }
 
@@ -95,14 +124,17 @@ impl<'a> Iterator for EnumerateWeek<'a> {
     type Item = (Weekday, StyledDate);
 
     fn next(&mut self) -> Option<(Weekday, StyledDate)> {
-        if let Some(wd) = self.next_weekday {
+        loop {
+            let Some(wd) = self.next_weekday else {
+                return None;
+            };
             self.next_weekday = match wd.next() {
                 Sunday => None,
                 wd2 => Some(wd2),
             };
-            Some((wd, self.week[wd]))
-        } else {
-            None
+            if let Some(date) = self.week.get(wd) {
+                return Some((wd, date));
+            }
         }
     }
 }
@@ -117,127 +149,165 @@ impl<S: DateStyler> WeekFactory<S> {
 
     pub(super) fn around_date(&self, date: Date, week_qty: usize) -> VecDeque<Week> {
         let mut weeks = VecDeque::with_capacity(week_qty + 1);
-        let start_week = self.containing(date);
+        let start_week = self.make(date);
         weeks.push_front(start_week);
-        let mut w = start_week;
-        for _ in 0..((week_qty - 1) / 2) {
-            w = self.week_before(&w);
+        for w in self.iter_weeks_before(start_week).take((week_qty - 1) / 2) {
             weeks.push_front(w);
         }
-        w = start_week;
-        for _ in 0..(week_qty / 2) {
-            w = self.week_after(&w);
-            weeks.push_back(w);
+        weeks.extend(
+            self.iter_weeks_after(start_week)
+                .take(week_qty - weeks.len()),
+        );
+        if weeks.len() < week_qty {
+            // We are near the end of time, and so the "after" weeks were
+            // short.  Fill towards the past.
+            for w in self
+                .iter_weeks_before(start_week)
+                .take(week_qty - weeks.len())
+            {
+                weeks.push_front(w);
+            }
         }
         weeks
     }
 
-    fn make(&self, sunday: Date) -> Week {
-        // TODO: Replace these unwrap()'s with something that returns Result!
-        let monday = sunday.next_day().unwrap();
-        let tuesday = monday.next_day().unwrap();
-        let wednesday = tuesday.next_day().unwrap();
-        let thursday = wednesday.next_day().unwrap();
-        let friday = thursday.next_day().unwrap();
-        let saturday = friday.next_day().unwrap();
-        Week([
-            StyledDate {
-                date: sunday,
-                style: self.0.date_style(sunday),
-            },
-            StyledDate {
-                date: monday,
-                style: self.0.date_style(monday),
-            },
-            StyledDate {
-                date: tuesday,
-                style: self.0.date_style(tuesday),
-            },
-            StyledDate {
-                date: wednesday,
-                style: self.0.date_style(wednesday),
-            },
-            StyledDate {
-                date: thursday,
-                style: self.0.date_style(thursday),
-            },
-            StyledDate {
-                date: friday,
-                style: self.0.date_style(friday),
-            },
-            StyledDate {
-                date: saturday,
-                style: self.0.date_style(saturday),
-            },
-        ])
+    fn style_date(&self, date: Date) -> StyledDate {
+        StyledDate {
+            date,
+            style: self.0.date_style(date),
+        }
     }
 
-    fn containing(&self, date: Date) -> Week {
-        let sunday = n_days_before(date, date.weekday().index0().into());
-        self.make(sunday)
+    // Returns the Week containing the given date, which can be at any day of
+    // the week
+    fn make(&self, date: Date) -> Week {
+        let i = usize::from(date.weekday().index0());
+        let mut week = Week::new(self.style_date(date));
+        for d in iter_days_before(date).take(i) {
+            week.set(self.style_date(d));
+        }
+        for d in iter_days_after(date).take(DAYS_IN_WEEK - i - 1) {
+            week.set(self.style_date(d));
+        }
+        week
     }
 
-    pub(super) fn week_before(&self, week: &Week) -> Week {
-        self.make(n_days_before(week[Sunday].date, 7))
+    pub(super) fn week_before(&self, week: &Week) -> Option<Week> {
+        week.get(Sunday)
+            .and_then(|sd| sd.date.previous_day())
+            .map(|d| self.make(d))
     }
 
-    pub(super) fn week_after(&self, week: &Week) -> Week {
-        self.make(n_days_after(week[Sunday].date, 7))
+    pub(super) fn week_after(&self, week: &Week) -> Option<Week> {
+        week.get(Saturday)
+            .and_then(|sd| sd.date.next_day())
+            .map(|d| self.make(d))
     }
 
-    pub(super) fn weeks_before(&self, mut week: Week, qty: usize) -> VecDeque<Week> {
+    fn iter_weeks_before(&self, week: Week) -> impl Iterator<Item = Week> + '_ {
+        successors(Some(week), |w| self.week_before(w)).skip(1)
+    }
+
+    fn iter_weeks_after(&self, week: Week) -> impl Iterator<Item = Week> + '_ {
+        successors(Some(week), |w| self.week_after(w)).skip(1)
+    }
+
+    // Returns `None` if there are no weeks before `week`.  If there are weeks
+    // before `week`, but not `qty` of them, only as many weeks as possible are
+    // returned.
+    pub(super) fn weeks_before(&self, week: Week, qty: usize) -> Option<VecDeque<Week>> {
+        if qty == 0 {
+            return None;
+        }
+        let mut iter = self.iter_weeks_before(week);
+        let first_week = iter.next()?;
         let mut weeks = VecDeque::with_capacity(qty + 1);
-        for _ in 0..qty {
-            week = self.week_before(&week);
-            weeks.push_front(week);
+        weeks.push_front(first_week);
+        for w in iter.take(qty - 1) {
+            weeks.push_front(w);
         }
-        weeks
+        Some(weeks)
     }
 
-    pub(super) fn weeks_after(&self, mut week: Week, qty: usize) -> VecDeque<Week> {
+    // Returns `None` if there are no weeks after `week`.  If there are weeks
+    // after `week`, but not `qty` of them, only as many weeks as possible are
+    // returned.
+    pub(super) fn weeks_after(&self, week: Week, qty: usize) -> Option<VecDeque<Week>> {
+        if qty == 0 {
+            return None;
+        }
+        let mut iter = self.iter_weeks_after(week);
+        let first_week = iter.next()?;
         let mut weeks = VecDeque::with_capacity(qty + 1);
-        for _ in 0..qty {
-            week = self.week_after(&week);
-            weeks.push_back(week);
-        }
-        weeks
+        weeks.push_back(first_week);
+        weeks.extend(iter.take(qty - 1));
+        Some(weeks)
     }
 }
 
-fn n_days_after(date: Date, n: i64) -> Date {
-    date.checked_add(Duration::days(n))
-        .expect("Reached end of calendar")
+fn iter_days_after(date: Date) -> impl Iterator<Item = Date> {
+    successors(Some(date), |&d| d.next_day()).skip(1)
 }
 
-fn n_days_before(date: Date, n: i64) -> Date {
-    date.checked_sub(Duration::days(n))
-        .expect("Reached beginning of calendar")
-}
-
-fn in_first_week_of_month(date: Date) -> bool {
-    date.day() <= date.weekday().number_from_sunday()
+fn iter_days_before(date: Date) -> impl Iterator<Item = Date> {
+    successors(Some(date), |&d| d.previous_day()).skip(1)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rstest::rstest;
-    use time::Month::*;
+    use time::macros::date;
 
-    #[rstest]
-    #[case(2023, October, 1, true)]
-    #[case(2023, October, 7, true)]
-    #[case(2023, October, 8, false)]
-    #[case(2023, November, 1, true)]
-    #[case(2023, November, 4, true)]
-    #[case(2023, November, 5, false)]
-    fn test_in_first_week_of_month(
-        #[case] year: i32,
-        #[case] month: Month,
-        #[case] day: u8,
-        #[case] r: bool,
-    ) {
-        let date = Date::from_calendar_date(year, month, day).unwrap();
-        assert_eq!(in_first_week_of_month(date), r);
+    struct NullStyler;
+
+    impl DateStyler for NullStyler {
+        fn date_style(&self, _date: Date) -> Style {
+            Style::new()
+        }
+    }
+
+    #[test]
+    fn test_make() {
+        let factory = WeekFactory::new(NullStyler);
+        let week = factory.make(date!(2023 - 11 - 16));
+        let mut iter = week.enumerate().map(|(wd, sd)| (wd, sd.date));
+        assert_eq!(iter.next(), Some((Sunday, date!(2023 - 11 - 12))));
+        assert_eq!(iter.next(), Some((Monday, date!(2023 - 11 - 13))));
+        assert_eq!(iter.next(), Some((Tuesday, date!(2023 - 11 - 14))));
+        assert_eq!(iter.next(), Some((Wednesday, date!(2023 - 11 - 15))));
+        assert_eq!(iter.next(), Some((Thursday, date!(2023 - 11 - 16))));
+        assert_eq!(iter.next(), Some((Friday, date!(2023 - 11 - 17))));
+        assert_eq!(iter.next(), Some((Saturday, date!(2023 - 11 - 18))));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_make_from_sunday() {
+        let factory = WeekFactory::new(NullStyler);
+        let week = factory.make(date!(2023 - 11 - 12));
+        let mut iter = week.enumerate().map(|(wd, sd)| (wd, sd.date));
+        assert_eq!(iter.next(), Some((Sunday, date!(2023 - 11 - 12))));
+        assert_eq!(iter.next(), Some((Monday, date!(2023 - 11 - 13))));
+        assert_eq!(iter.next(), Some((Tuesday, date!(2023 - 11 - 14))));
+        assert_eq!(iter.next(), Some((Wednesday, date!(2023 - 11 - 15))));
+        assert_eq!(iter.next(), Some((Thursday, date!(2023 - 11 - 16))));
+        assert_eq!(iter.next(), Some((Friday, date!(2023 - 11 - 17))));
+        assert_eq!(iter.next(), Some((Saturday, date!(2023 - 11 - 18))));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_make_from_saturday() {
+        let factory = WeekFactory::new(NullStyler);
+        let week = factory.make(date!(2023 - 11 - 18));
+        let mut iter = week.enumerate().map(|(wd, sd)| (wd, sd.date));
+        assert_eq!(iter.next(), Some((Sunday, date!(2023 - 11 - 12))));
+        assert_eq!(iter.next(), Some((Monday, date!(2023 - 11 - 13))));
+        assert_eq!(iter.next(), Some((Tuesday, date!(2023 - 11 - 14))));
+        assert_eq!(iter.next(), Some((Wednesday, date!(2023 - 11 - 15))));
+        assert_eq!(iter.next(), Some((Thursday, date!(2023 - 11 - 16))));
+        assert_eq!(iter.next(), Some((Friday, date!(2023 - 11 - 17))));
+        assert_eq!(iter.next(), Some((Saturday, date!(2023 - 11 - 18))));
+        assert_eq!(iter.next(), None);
     }
 }

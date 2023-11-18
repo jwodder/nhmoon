@@ -76,10 +76,10 @@ impl<S: DateStyler> App<S> {
             return Ok(());
         }
         match key {
-            KeyCode::Char('j') | KeyCode::Down => self.scroll_down(),
-            KeyCode::Char('k') | KeyCode::Up => self.scroll_up(),
-            KeyCode::Char('z') | KeyCode::PageDown => self.page_down(),
-            KeyCode::Char('w') | KeyCode::PageUp => self.page_up(),
+            KeyCode::Char('j') | KeyCode::Down => self.scroll_down()?,
+            KeyCode::Char('k') | KeyCode::Up => self.scroll_up()?,
+            KeyCode::Char('z') | KeyCode::PageDown => self.page_down()?,
+            KeyCode::Char('w') | KeyCode::PageUp => self.page_up()?,
             KeyCode::Char('0') | KeyCode::Home => self.reset(),
             KeyCode::Char('q') | KeyCode::Esc => self.quit(),
             KeyCode::Char('?') => self.helping = true,
@@ -88,20 +88,32 @@ impl<S: DateStyler> App<S> {
         Ok(())
     }
 
-    fn scroll_down(&mut self) {
-        self.weeks.one_week_forwards();
+    fn scroll_down(&mut self) -> io::Result<()> {
+        if self.weeks.one_week_forwards().is_err() {
+            self.beep()?;
+        }
+        Ok(())
     }
 
-    fn scroll_up(&mut self) {
-        self.weeks.one_week_backwards();
+    fn scroll_up(&mut self) -> io::Result<()> {
+        if self.weeks.one_week_backwards().is_err() {
+            self.beep()?;
+        }
+        Ok(())
     }
 
-    fn page_down(&mut self) {
-        self.weeks.one_page_forwards();
+    fn page_down(&mut self) -> io::Result<()> {
+        if self.weeks.one_page_forwards().is_err() {
+            self.beep()?;
+        }
+        Ok(())
     }
 
-    fn page_up(&mut self) {
-        self.weeks.one_page_backwards();
+    fn page_up(&mut self) -> io::Result<()> {
+        if self.weeks.one_page_backwards().is_err() {
+            self.beep()?;
+        }
+        Ok(())
     }
 
     fn reset(&mut self) {

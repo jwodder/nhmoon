@@ -5,7 +5,7 @@ use ratatui::{prelude::*, widgets::*};
 use std::marker::PhantomData;
 use time::{
     Month::{self, January},
-    Weekday::{self, Saturday, Sunday},
+    Weekday::{self, Saturday},
 };
 
 static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa ";
@@ -85,16 +85,18 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
         let mut canvas = BufferCanvas::new(area, buf);
         canvas.draw_header();
         let top = weeks[0];
-        canvas.draw_year(0, top[Sunday].year());
-        canvas.draw_month(0, top[Saturday].month());
+        canvas.draw_year(0, top.first_ym().0);
+        canvas.draw_month(0, top.last_ym().1);
         for (i, week) in std::iter::zip(0u16.., weeks) {
-            if week[Saturday].in_first_week_of_month() {
-                canvas.draw_month(i, week[Saturday].month());
-                if week[Saturday].month() == January {
-                    if week[Sunday].month() == January {
-                        canvas.draw_year(i, week[Sunday].year());
+            if week.has_month_start() {
+                let (first_year, first_month) = week.first_ym();
+                let (last_year, last_month) = week.last_ym();
+                canvas.draw_month(i, last_month);
+                if last_month == January {
+                    if first_month == January {
+                        canvas.draw_year(i, first_year);
                     } else if usize::from(i + 1) < weeks.len() {
-                        canvas.draw_year(i + 1, week[Saturday].year());
+                        canvas.draw_year(i + 1, last_year);
                     }
                 }
             }
