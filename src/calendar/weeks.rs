@@ -2,6 +2,7 @@ use super::util::*;
 use super::DateStyler;
 use std::cmp::Ordering;
 use std::collections::VecDeque;
+use std::num::NonZeroUsize;
 use thiserror::Error;
 use time::Date;
 
@@ -9,6 +10,8 @@ use time::Date;
 pub(crate) struct WeekWindow<S> {
     pub(super) today: Date,
     start_date: Date,
+    // Invariant: When `weeks` is `Some`, it is always nonempty, and thus going
+    // one page forwards/backwards always does something.
     weeks: Option<VecDeque<Week>>,
     week_factory: WeekFactory<S>,
 }
@@ -29,25 +32,23 @@ impl<S: DateStyler> WeekWindow<S> {
         self
     }
 
-    pub(super) fn ensure_weeks(&mut self, week_qty: usize) -> &VecDeque<Week> {
-        // If we're asked to create zero weeks, create one week instead so that
-        // `weeks` is always nonempty:
-        let week_qty = week_qty.max(1);
+    pub(super) fn ensure_weeks(&mut self, week_qty: NonZeroUsize) -> &VecDeque<Week> {
         if let Some(weeks) = self.weeks.as_mut() {
-            match weeks.len().cmp(&week_qty) {
+            match weeks.len().cmp(&week_qty.get()) {
                 Ordering::Less => {
+                    let missing = NonZeroUsize::new(week_qty.get() - weeks.len())
+                        .expect("Greater minus lesser should be nonzero");
                     let mut extension = self
                         .week_factory
                         .weeks_after(
                             *weeks
                                 .back()
                                 .expect("WeekWindow.weeks should always be nonempty"),
-                            week_qty - weeks.len(),
+                            missing,
                         )
                         .unwrap_or_default();
                     weeks.append(&mut extension);
-                    let missing = week_qty - weeks.len();
-                    if missing > 0 {
+                    if let Some(missing) = NonZeroUsize::new(week_qty.get() - weeks.len()) {
                         // The terminal was heightened while at the end of
                         // time, so "scroll" the calendar down by prepending
                         // weeks from before the window.
@@ -63,7 +64,7 @@ impl<S: DateStyler> WeekWindow<S> {
                         }
                     }
                 }
-                Ordering::Greater => weeks.truncate(week_qty),
+                Ordering::Greater => weeks.truncate(week_qty.get()),
                 Ordering::Equal => (),
             }
         }
@@ -73,7 +74,8 @@ impl<S: DateStyler> WeekWindow<S> {
 
     pub(crate) fn jump_to_today(&mut self) {
         if let Some(weeks) = self.weeks.as_mut() {
-            *weeks = self.week_factory.around_date(self.today, weeks.len());
+            let week_qty = NonZeroUsize::new(weeks.len()).expect("weeks.len() should be nonzero");
+            *weeks = self.week_factory.around_date(self.today, week_qty);
         }
     }
 
@@ -110,9 +112,10 @@ impl<S: DateStyler> WeekWindow<S> {
             return Ok(());
         };
         assert!(!weeks.is_empty());
+        let week_qty = NonZeroUsize::new(weeks.len()).expect("weeks.len() should be nonzero");
         if let Some(mut page) = self
             .week_factory
-            .weeks_after(*weeks.back().unwrap(), weeks.len())
+            .weeks_after(*weeks.back().unwrap(), week_qty)
         {
             if page.len() == weeks.len() {
                 *weeks = page;
@@ -132,9 +135,10 @@ impl<S: DateStyler> WeekWindow<S> {
             return Ok(());
         };
         assert!(!weeks.is_empty());
+        let week_qty = NonZeroUsize::new(weeks.len()).expect("weeks.len() should be nonzero");
         if let Some(mut page) = self
             .week_factory
-            .weeks_before(*weeks.front().unwrap(), weeks.len())
+            .weeks_before(*weeks.front().unwrap(), week_qty)
         {
             if page.len() < weeks.len() {
                 weeks.truncate(weeks.len() - page.len());

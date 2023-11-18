@@ -3,6 +3,7 @@ use super::weeks::WeekWindow;
 use super::DateStyler;
 use ratatui::{prelude::*, widgets::*};
 use std::marker::PhantomData;
+use std::num::NonZeroUsize;
 use time::{
     Month::{self, January},
     Weekday::{self, Saturday},
@@ -60,9 +61,12 @@ impl<S> Calendar<S> {
         Calendar { _data: PhantomData }
     }
 
-    fn weeks_for_lines(lines: u16) -> usize {
-        // ceil((lines - HEADER_LINES)/2)
-        (lines.saturating_sub(HEADER_LINES).saturating_add(1) / 2).into()
+    // ceil((lines - HEADER_LINES)/2)
+    fn weeks_for_lines(lines: u16) -> NonZeroUsize {
+        // If there's no room to show any weeks, request one week anyway so
+        // that `WeekWindow.weeks` is always nonempty.
+        NonZeroUsize::new((lines.saturating_sub(HEADER_LINES).saturating_add(1) / 2).into())
+            .unwrap_or(NonZeroUsize::MIN)
     }
 }
 

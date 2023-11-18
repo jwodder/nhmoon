@@ -2,6 +2,7 @@ use super::DateStyler;
 use ratatui::{style::Style, text::Span};
 use std::collections::VecDeque;
 use std::iter::successors;
+use std::num::NonZeroUsize;
 use time::{Date, Month, Weekday, Weekday::*};
 
 const DAYS_IN_WEEK: usize = 7;
@@ -142,23 +143,26 @@ impl<S: DateStyler> WeekFactory<S> {
         WeekFactory(styler)
     }
 
-    pub(super) fn around_date(&self, date: Date, week_qty: usize) -> VecDeque<Week> {
-        let mut weeks = VecDeque::with_capacity(week_qty + 1);
+    pub(super) fn around_date(&self, date: Date, week_qty: NonZeroUsize) -> VecDeque<Week> {
+        let mut weeks = VecDeque::with_capacity(week_qty.get() + 1);
         let start_week = self.make(date);
         weeks.push_front(start_week);
-        for w in self.iter_weeks_before(start_week).take((week_qty - 1) / 2) {
+        for w in self
+            .iter_weeks_before(start_week)
+            .take((week_qty.get() - 1) / 2)
+        {
             weeks.push_front(w);
         }
         weeks.extend(
             self.iter_weeks_after(start_week)
-                .take(week_qty - weeks.len()),
+                .take(week_qty.get() - weeks.len()),
         );
-        if weeks.len() < week_qty {
+        if weeks.len() < week_qty.get() {
             // We are near the end of time, and so the "after" weeks were
             // short.  Fill towards the past.
             for w in self
                 .iter_weeks_before(start_week)
-                .take(week_qty - weeks.len())
+                .take(week_qty.get() - weeks.len())
             {
                 weeks.push_front(w);
             }
@@ -210,15 +214,12 @@ impl<S: DateStyler> WeekFactory<S> {
     // Returns `None` if there are no weeks before `week`.  If there are weeks
     // before `week`, but not `qty` of them, only as many weeks as possible are
     // returned.
-    pub(super) fn weeks_before(&self, week: Week, qty: usize) -> Option<VecDeque<Week>> {
-        if qty == 0 {
-            return None;
-        }
+    pub(super) fn weeks_before(&self, week: Week, qty: NonZeroUsize) -> Option<VecDeque<Week>> {
         let mut iter = self.iter_weeks_before(week);
         let first_week = iter.next()?;
-        let mut weeks = VecDeque::with_capacity(qty + 1);
+        let mut weeks = VecDeque::with_capacity(qty.get() + 1);
         weeks.push_front(first_week);
-        for w in iter.take(qty - 1) {
+        for w in iter.take(qty.get() - 1) {
             weeks.push_front(w);
         }
         Some(weeks)
@@ -227,15 +228,12 @@ impl<S: DateStyler> WeekFactory<S> {
     // Returns `None` if there are no weeks after `week`.  If there are weeks
     // after `week`, but not `qty` of them, only as many weeks as possible are
     // returned.
-    pub(super) fn weeks_after(&self, week: Week, qty: usize) -> Option<VecDeque<Week>> {
-        if qty == 0 {
-            return None;
-        }
+    pub(super) fn weeks_after(&self, week: Week, qty: NonZeroUsize) -> Option<VecDeque<Week>> {
         let mut iter = self.iter_weeks_after(week);
         let first_week = iter.next()?;
-        let mut weeks = VecDeque::with_capacity(qty + 1);
+        let mut weeks = VecDeque::with_capacity(qty.get() + 1);
         weeks.push_back(first_week);
-        weeks.extend(iter.take(qty - 1));
+        weeks.extend(iter.take(qty.get() - 1));
         Some(weeks)
     }
 }
