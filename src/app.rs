@@ -1,4 +1,4 @@
-use crate::calpager::{CalPager, CalPagerWidget, DateStyler};
+use crate::calendar::{Calendar, DateStyler, WeekWindow};
 use crate::help::Help;
 use crossterm::{
     event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
@@ -13,16 +13,16 @@ pub(crate) type CrossTerminal = Terminal<CrosstermBackend<io::Stdout>>;
 #[derive(Debug)]
 pub(crate) struct App<S> {
     terminal: CrossTerminal,
-    calpager: CalPager<S>,
+    weeks: WeekWindow<S>,
     quitting: bool,
     helping: bool,
 }
 
 impl<S: DateStyler> App<S> {
-    pub(crate) fn new(terminal: CrossTerminal, calpager: CalPager<S>) -> App<S> {
+    pub(crate) fn new(terminal: CrossTerminal, weeks: WeekWindow<S>) -> App<S> {
         App {
             terminal,
-            calpager,
+            weeks,
             quitting: false,
             helping: false,
         }
@@ -41,8 +41,8 @@ impl<S: DateStyler> App<S> {
             let size = frame.size();
             let defstyle = Style::default().white().on_black();
             frame.buffer_mut().set_style(size, defstyle);
-            let cpw = CalPagerWidget::<S>::new();
-            frame.render_stateful_widget(cpw, size, &mut self.calpager);
+            let cal = Calendar::<S>::new();
+            frame.render_stateful_widget(cal, size, &mut self.weeks);
             if self.helping {
                 frame.render_widget(Help(defstyle), size);
             }
@@ -89,23 +89,23 @@ impl<S: DateStyler> App<S> {
     }
 
     fn scroll_down(&mut self) {
-        self.calpager.one_week_forwards();
+        self.weeks.one_week_forwards();
     }
 
     fn scroll_up(&mut self) {
-        self.calpager.one_week_backwards();
+        self.weeks.one_week_backwards();
     }
 
     fn page_down(&mut self) {
-        self.calpager.one_page_forwards();
+        self.weeks.one_page_forwards();
     }
 
     fn page_up(&mut self) {
-        self.calpager.one_page_backwards();
+        self.weeks.one_page_backwards();
     }
 
     fn reset(&mut self) {
-        self.calpager.jump_to_today();
+        self.weeks.jump_to_today();
     }
 
     fn quit(&mut self) {

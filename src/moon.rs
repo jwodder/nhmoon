@@ -1,4 +1,4 @@
-use crate::calpager::DateStyler;
+use crate::calendar::DateStyler;
 use ratatui::style::{Style, Stylize};
 use time::Date;
 

@@ -1,34 +1,27 @@
-mod weeks;
-mod widget;
-use self::weeks::*;
-pub(crate) use self::widget::CalPagerWidget;
-use ratatui::style::Style;
+use super::util::*;
+use super::DateStyler;
 use std::cmp::Ordering;
 use std::collections::VecDeque;
 use time::Date;
 
-pub(crate) trait DateStyler {
-    fn date_style(&self, date: Date) -> Style;
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CalPager<S> {
-    today: Date,
+pub(crate) struct WeekWindow<S> {
+    pub(super) today: Date,
     weeks: Option<VecDeque<Week>>,
     week_factory: WeekFactory<S>,
 }
 
-impl<S: DateStyler> CalPager<S> {
+impl<S: DateStyler> WeekWindow<S> {
     pub(crate) fn new(today: Date, date_styler: S) -> Self {
         let week_factory = WeekFactory::new(date_styler);
-        CalPager {
+        WeekWindow {
             today,
             week_factory,
             weeks: None,
         }
     }
 
-    fn ensure_weeks(&mut self, week_qty: usize) -> &VecDeque<Week> {
+    pub(super) fn ensure_weeks(&mut self, week_qty: usize) -> &VecDeque<Week> {
         // If we're asked to create zero weeks, create one week instead so that
         // `weeks` is always nonempty:
         let week_qty = week_qty.max(1);

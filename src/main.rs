@@ -1,9 +1,9 @@
 mod app;
-mod calpager;
+mod calendar;
 mod help;
 mod moon;
 use crate::app::{App, CrossTerminal};
-use crate::calpager::CalPager;
+use crate::calendar::WeekWindow;
 use crate::moon::Phoon;
 use anyhow::Context;
 use crossterm::{
@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
         .date();
     with_terminal(|mut terminal| {
         terminal.hide_cursor().context("failed to hide cursor")?;
-        let calpager = CalPager::new(today, Phoon);
+        let calpager = WeekWindow::new(today, Phoon);
         App::new(terminal, calpager).run()?;
         Ok(())
     })

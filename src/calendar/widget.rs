@@ -1,5 +1,6 @@
-use super::weeks::WeekdayExt;
-use super::{CalPager, DateStyler};
+use super::util::WeekdayExt;
+use super::weeks::WeekWindow;
+use super::DateStyler;
 use ratatui::{prelude::*, widgets::*};
 use std::marker::PhantomData;
 use time::{
@@ -50,13 +51,13 @@ const ACS_ULCORNER: char = '┌';
 const ACS_LRCORNER: char = '┘';
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CalPagerWidget<S> {
+pub(crate) struct Calendar<S> {
     _data: PhantomData<S>,
 }
 
-impl<S> CalPagerWidget<S> {
-    pub(crate) fn new() -> CalPagerWidget<S> {
-        CalPagerWidget { _data: PhantomData }
+impl<S> Calendar<S> {
+    pub(crate) fn new() -> Calendar<S> {
+        Calendar { _data: PhantomData }
     }
 
     fn weeks_for_lines(lines: u16) -> usize {
@@ -65,8 +66,8 @@ impl<S> CalPagerWidget<S> {
     }
 }
 
-impl<S: DateStyler> StatefulWidget for CalPagerWidget<S> {
-    type State = CalPager<S>;
+impl<S: DateStyler> StatefulWidget for Calendar<S> {
+    type State = WeekWindow<S>;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let left = (area.width.saturating_sub(MAIN_WIDTH) / 2).max(LEFT_MARGIN) - LEFT_MARGIN;
