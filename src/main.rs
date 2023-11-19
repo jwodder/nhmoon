@@ -89,7 +89,7 @@ fn main() -> anyhow::Result<()> {
 
 fn with_terminal<F, T>(func: F) -> anyhow::Result<T>
 where
-    F: Fn(CrossTerminal) -> anyhow::Result<T>,
+    F: FnOnce(CrossTerminal) -> anyhow::Result<T>,
 {
     let mut stream = io::stdout();
     execute!(stream, EnterAlternateScreen).context("failed to start alternate screen")?;
