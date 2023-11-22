@@ -66,7 +66,10 @@ impl Week {
 
     fn set(&mut self, date: StyledDate) {
         let i = usize::from(date.date.weekday().index0());
-        assert!(i < DAYS_IN_WEEK);
+        assert!(
+            i < DAYS_IN_WEEK,
+            "zero-based index of weekday should be less than number of days in week"
+        );
         self.0[i] = Some(date);
     }
 
@@ -116,7 +119,7 @@ impl<'a> EnumerateWeek<'a> {
     }
 }
 
-impl<'a> Iterator for EnumerateWeek<'a> {
+impl Iterator for EnumerateWeek<'_> {
     type Item = (Weekday, StyledDate);
 
     fn next(&mut self) -> Option<(Weekday, StyledDate)> {

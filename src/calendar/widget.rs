@@ -221,6 +221,6 @@ impl<'a> BufferCanvas<'a> {
     }
 
     fn hline(&mut self, y: u16, x: u16, ch: char, length: u16) {
-        self.mvprint(y, x, String::from(ch).repeat(length.into()), None)
+        self.mvprint(y, x, String::from(ch).repeat(length.into()), None);
     }
 }

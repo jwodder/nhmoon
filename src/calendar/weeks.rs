@@ -83,8 +83,10 @@ impl<S: DateStyler> WeekWindow<S> {
         let Some(weeks) = self.weeks.as_mut() else {
             return Ok(());
         };
-        assert!(!weeks.is_empty());
-        if let Some(w) = self.week_factory.week_after(weeks.back().unwrap()) {
+        let back = weeks
+            .back()
+            .expect("WeekWindow.weeks should always be nonempty");
+        if let Some(w) = self.week_factory.week_after(back) {
             weeks.push_back(w);
             weeks.pop_front();
             Ok(())
@@ -97,8 +99,10 @@ impl<S: DateStyler> WeekWindow<S> {
         let Some(weeks) = self.weeks.as_mut() else {
             return Ok(());
         };
-        assert!(!weeks.is_empty());
-        if let Some(w) = self.week_factory.week_before(weeks.front().unwrap()) {
+        let front = weeks
+            .front()
+            .expect("WeekWindow.weeks should always be nonempty");
+        if let Some(w) = self.week_factory.week_before(front) {
             weeks.push_front(w);
             weeks.pop_back();
             Ok(())
@@ -111,16 +115,18 @@ impl<S: DateStyler> WeekWindow<S> {
         let Some(weeks) = self.weeks.as_mut() else {
             return Ok(());
         };
-        assert!(!weeks.is_empty());
         let week_qty = NonZeroUsize::new(weeks.len()).expect("weeks.len() should be nonzero");
-        if let Some(mut page) = self
-            .week_factory
-            .weeks_after(*weeks.back().unwrap(), week_qty)
-        {
+        let back = weeks
+            .back()
+            .expect("WeekWindow.weeks should always be nonempty");
+        if let Some(mut page) = self.week_factory.weeks_after(*back, week_qty) {
             if page.len() == weeks.len() {
                 *weeks = page;
             } else {
-                assert!(page.len() < weeks.len());
+                assert!(
+                    page.len() < weeks.len(),
+                    "week_after() should not return more than week_qty items"
+                );
                 weeks.drain(0..(page.len()));
                 weeks.append(&mut page);
             }
@@ -134,12 +140,11 @@ impl<S: DateStyler> WeekWindow<S> {
         let Some(weeks) = self.weeks.as_mut() else {
             return Ok(());
         };
-        assert!(!weeks.is_empty());
         let week_qty = NonZeroUsize::new(weeks.len()).expect("weeks.len() should be nonzero");
-        if let Some(mut page) = self
-            .week_factory
-            .weeks_before(*weeks.front().unwrap(), week_qty)
-        {
+        let front = weeks
+            .front()
+            .expect("WeekWindow.weeks should always be nonempty");
+        if let Some(mut page) = self.week_factory.weeks_before(*front, week_qty) {
             if page.len() < weeks.len() {
                 weeks.truncate(weeks.len() - page.len());
                 page.append(weeks);
