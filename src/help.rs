@@ -38,22 +38,24 @@ impl Widget for Help {
             .style(self.0);
         let left = (area.width - width) / 2;
         let top = (area.height - height) / 2;
-        let horiz_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
+        let horiz_chunks = Layout::new(
+            Direction::Horizontal,
+            [
                 Constraint::Length(left),
                 Constraint::Length(width),
                 Constraint::Min(0),
-            ])
-            .split(area);
-        let vert_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
+            ],
+        )
+        .split(area);
+        let vert_chunks = Layout::new(
+            Direction::Vertical,
+            [
                 Constraint::Length(top),
                 Constraint::Length(height),
                 Constraint::Min(0),
-            ])
-            .split(horiz_chunks[1]);
+            ],
+        )
+        .split(horiz_chunks[1]);
         let help_area = vert_chunks[1];
         let outer_area = Rect {
             x: help_area.x.saturating_sub(1),
