@@ -146,27 +146,21 @@ impl<S: DateStyler> WeekFactory<S> {
         WeekFactory(styler)
     }
 
-    pub(super) fn around_date(&self, date: Date, week_qty: NonZeroUsize) -> VecDeque<Week> {
-        let mut weeks = VecDeque::with_capacity(week_qty.get() + 1);
+    pub(super) fn around_date(&self, date: Date, week_qty: NonZeroUsize) -> NonEmptyVecDeque<Week> {
         let start_week = self.make(date);
-        weeks.push_front(start_week);
+        let mut weeks = NonEmptyVecDeque::new(start_week, week_qty);
         for w in self
             .iter_weeks_before(start_week)
             .take((week_qty.get() - 1) / 2)
         {
             weeks.push_front(w);
         }
-        weeks.extend(
-            self.iter_weeks_after(start_week)
-                .take(week_qty.get() - weeks.len()),
-        );
-        if weeks.len() < week_qty.get() {
+        weeks.extend(self.iter_weeks_after(start_week).take(weeks.unfilled()));
+        let unfilled = weeks.unfilled();
+        if unfilled > 0 {
             // We are near the end of time, and so the "after" weeks were
             // short.  Fill towards the past.
-            for w in self
-                .iter_weeks_before(start_week)
-                .take(week_qty.get() - weeks.len())
-            {
+            for w in self.iter_weeks_before(*weeks.front()).take(unfilled) {
                 weeks.push_front(w);
             }
         }
@@ -217,11 +211,14 @@ impl<S: DateStyler> WeekFactory<S> {
     // Returns `None` if there are no weeks before `week`.  If there are weeks
     // before `week`, but not `qty` of them, only as many weeks as possible are
     // returned.
-    pub(super) fn weeks_before(&self, week: Week, qty: NonZeroUsize) -> Option<VecDeque<Week>> {
+    pub(super) fn weeks_before(
+        &self,
+        week: Week,
+        qty: NonZeroUsize,
+    ) -> Option<NonEmptyVecDeque<Week>> {
         let mut iter = self.iter_weeks_before(week);
         let first_week = iter.next()?;
-        let mut weeks = VecDeque::with_capacity(qty.get() + 1);
-        weeks.push_front(first_week);
+        let mut weeks = NonEmptyVecDeque::new(first_week, qty);
         for w in iter.take(qty.get() - 1) {
             weeks.push_front(w);
         }
@@ -231,13 +228,109 @@ impl<S: DateStyler> WeekFactory<S> {
     // Returns `None` if there are no weeks after `week`.  If there are weeks
     // after `week`, but not `qty` of them, only as many weeks as possible are
     // returned.
-    pub(super) fn weeks_after(&self, week: Week, qty: NonZeroUsize) -> Option<VecDeque<Week>> {
+    pub(super) fn weeks_after(
+        &self,
+        week: Week,
+        qty: NonZeroUsize,
+    ) -> Option<NonEmptyVecDeque<Week>> {
         let mut iter = self.iter_weeks_after(week);
         let first_week = iter.next()?;
-        let mut weeks = VecDeque::with_capacity(qty.get() + 1);
-        weeks.push_back(first_week);
+        let mut weeks = NonEmptyVecDeque::new(first_week, qty);
         weeks.extend(iter.take(qty.get() - 1));
         Some(weeks)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct NonEmptyVecDeque<T>(VecDeque<T>);
+
+impl<T> NonEmptyVecDeque<T> {
+    pub(super) fn new(init: T, capacity: NonZeroUsize) -> Self {
+        let mut deque = VecDeque::with_capacity(capacity.get());
+        deque.push_front(init);
+        NonEmptyVecDeque(deque)
+    }
+
+    pub(super) fn len(&self) -> NonZeroUsize {
+        let Some(len) = NonZeroUsize::new(self.0.len()) else {
+            unreachable!("Length of NonEmptyVecDeque cannot be zero");
+        };
+        len
+    }
+
+    fn unfilled(&self) -> usize {
+        self.0.capacity() - self.0.len()
+    }
+
+    pub(super) fn push_front(&mut self, value: T) {
+        self.0.push_front(value);
+    }
+
+    pub(super) fn rotate_push_front(&mut self, value: T) {
+        self.0.pop_back();
+        self.0.push_front(value);
+    }
+
+    pub(super) fn rotate_push_back(&mut self, value: T) {
+        self.0.pop_front();
+        self.0.push_back(value);
+    }
+
+    pub(super) fn append(&mut self, other: &mut NonEmptyVecDeque<T>) {
+        self.0.append(&mut other.0);
+    }
+
+    pub(super) fn prepend(&mut self, other: NonEmptyVecDeque<T>) {
+        for value in other.0 {
+            self.0.push_front(value);
+        }
+    }
+
+    pub(super) fn rotate_append(&mut self, other: &mut NonEmptyVecDeque<T>) {
+        self.0.drain(0..(other.len().get()));
+        self.0.append(&mut other.0);
+    }
+
+    pub(super) fn front(&self) -> &T {
+        let Some(t) = self.0.front() else {
+            unreachable!("NonEmptyVecDeque should be nonempty");
+        };
+        t
+    }
+
+    pub(super) fn back(&self) -> &T {
+        let Some(t) = self.0.back() else {
+            unreachable!("NonEmptyVecDeque should be nonempty");
+        };
+        t
+    }
+
+    pub(super) fn truncate(&mut self, len: NonZeroUsize) {
+        self.0.truncate(len.get());
+    }
+}
+
+impl<T> IntoIterator for NonEmptyVecDeque<T> {
+    type Item = T;
+    type IntoIter = std::collections::vec_deque::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a NonEmptyVecDeque<T> {
+    type Item = &'a T;
+    type IntoIter = std::collections::vec_deque::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl<T> Extend<T> for NonEmptyVecDeque<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.0.extend(iter);
     }
 }
 

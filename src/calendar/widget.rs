@@ -90,7 +90,7 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
         let weeks = state.ensure_weeks(Self::weeks_for_lines(area.height));
         let mut canvas = BufferCanvas::new(area, buf);
         canvas.draw_header();
-        let top = weeks[0];
+        let top = *weeks.front();
         canvas.draw_year(0, top.first_ym().0);
         canvas.draw_month(0, top.last_ym().1);
         for (i, week) in std::iter::zip(0u16.., weeks) {
@@ -101,7 +101,7 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
                 if last_month == January {
                     if first_month == January {
                         canvas.draw_year(i, first_year);
-                    } else if usize::from(i + 1) < weeks.len() {
+                    } else if usize::from(i + 1) < weeks.len().get() {
                         canvas.draw_year(i + 1, last_year);
                     }
                 }
