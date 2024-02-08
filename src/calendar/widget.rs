@@ -200,7 +200,7 @@ impl<'a> BufferCanvas<'a> {
 
     fn mvprint<S: AsRef<str>>(&mut self, y: u16, x: u16, s: S, style: Option<Style>) {
         if y < self.area.height && x < self.area.width {
-            let text = Text::styled(s.as_ref(), style.unwrap_or_default());
+            let text = s.as_ref().set_style(style.unwrap_or_default());
             let width = u16::try_from(text.width()).unwrap_or(u16::MAX);
             // Using a Paragraph lets us truncate text that extends beyond the
             // calendar's area, though we need to be sure that the Rect passed
