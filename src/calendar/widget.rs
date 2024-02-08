@@ -76,14 +76,11 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let left = (area.width.saturating_sub(MAIN_WIDTH) / 2).max(LEFT_MARGIN) - LEFT_MARGIN;
-        let chunks = Layout::new(
-            Direction::Horizontal,
-            [
-                Constraint::Length(left),
-                Constraint::Length(TOTAL_WIDTH.min(area.width)),
-                Constraint::Min(0),
-            ],
-        )
+        let chunks = Layout::horizontal([
+            Constraint::Length(left),
+            Constraint::Length(TOTAL_WIDTH.min(area.width)),
+            Constraint::Min(0),
+        ])
         .split(area);
         let area = chunks[1];
         let today = state.today;
