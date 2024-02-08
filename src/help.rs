@@ -1,5 +1,4 @@
-use ratatui::prelude::*;
-use ratatui::widgets::*;
+use ratatui::{layout::Flex, prelude::*, widgets::*};
 
 static TEXT: &[&str] = &[
     "j, UP           Scroll up one week\n",
@@ -35,26 +34,15 @@ impl Widget for Help {
                     .title_alignment(Alignment::Center),
             )
             .style(self.0);
-        let left = (area.width - width) / 2;
-        let top = (area.height - height) / 2;
-        let horiz_chunks = Layout::horizontal([
-            Constraint::Length(left),
-            Constraint::Length(width),
-            Constraint::Min(0),
-        ])
-        .split(area);
-        let vert_chunks = Layout::vertical([
-            Constraint::Length(top),
-            Constraint::Length(height),
-            Constraint::Min(0),
-        ])
-        .split(horiz_chunks[1]);
-        let help_area = vert_chunks[1];
+        let [help_area] = Layout::horizontal([width]).flex(Flex::Center).areas(area);
+        let [help_area] = Layout::vertical([height])
+            .flex(Flex::Center)
+            .areas(help_area);
         let outer_area = Rect {
             x: help_area.x.saturating_sub(1),
-            y: help_area.y.saturating_sub(1),
+            y: help_area.y,
             width: help_area.width.saturating_add(2),
-            height: help_area.height.saturating_add(2),
+            height: help_area.height,
         };
         Clear.render(outer_area, buf);
         Block::new().style(self.0).render(outer_area, buf);

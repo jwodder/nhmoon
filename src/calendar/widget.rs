@@ -76,6 +76,8 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let left = (area.width.saturating_sub(MAIN_WIDTH) / 2).max(LEFT_MARGIN) - LEFT_MARGIN;
+        // Flex::Center is not applicable here, as we're centering `MAIN_WIDTH`
+        // but getting a Rect for `TOTAL_WIDTH`.
         let chunks = Layout::horizontal([
             Constraint::Length(left),
             Constraint::Length(TOTAL_WIDTH.min(area.width)),
