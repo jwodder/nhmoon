@@ -124,9 +124,7 @@ impl Iterator for EnumerateWeek<'_> {
 
     fn next(&mut self) -> Option<(Weekday, StyledDate)> {
         loop {
-            let Some(wd) = self.next_weekday else {
-                return None;
-            };
+            let wd = self.next_weekday?;
             self.next_weekday = match wd.next() {
                 Sunday => None,
                 wd2 => Some(wd2),
