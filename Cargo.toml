@@ -22,6 +22,7 @@ time = { version = "0.3.30", features = ["local-offset", "macros", "parsing"] }
 [lints.rust]
 # Lint groups:
 future_incompatible = { level = "deny", priority = -1 }
+refining_impl_trait = { level = "deny", priority = -1 }
 rust_2018_idioms = { level = "deny", priority = -1 }
 unused = { level = "deny", priority = -1 }
 
@@ -80,7 +81,6 @@ opaque_hidden_inferred_bound = "deny"
 overlapping_range_endpoints = "deny"
 private_bounds = "deny"
 private_interfaces = "deny"
-refining_impl_trait = "deny"
 renamed_and_removed_lints = "deny"
 special_module_name = "deny"
 stable_features = "deny"
