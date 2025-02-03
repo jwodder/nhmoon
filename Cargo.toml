@@ -2,7 +2,7 @@
 name = "nhmoon"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.74"
 description = "Scrollable terminal calendar highlighting NetHack's new & full moons"
 authors = ["John Thorvald Wodder II <nhmoon@varonathe.org>"]
 repository = "https://github.com/jwodder/nhmoon"
