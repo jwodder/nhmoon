@@ -1,7 +1,7 @@
 use super::util::WeekdayExt;
 use super::weeks::WeekWindow;
 use super::DateStyler;
-use ratatui::{prelude::*, widgets::*};
+use ratatui::{prelude::*, style::Styled, widgets::*};
 use std::marker::PhantomData;
 use std::num::NonZeroUsize;
 use time::{
@@ -194,9 +194,7 @@ impl<'a> BufferCanvas<'a> {
 
     fn mvaddch(&mut self, y: u16, x: u16, ch: char) {
         if y < self.area.height && x < self.area.width {
-            self.buf
-                .get_mut(x + self.area.x, y + self.area.y)
-                .set_char(ch);
+            self.buf[(x + self.area.x, y + self.area.y)].set_char(ch);
         }
     }
 
