@@ -2,7 +2,7 @@
 name = "nhmoon"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.74"
 description = "Scrollable terminal calendar highlighting NetHack's new & full moons"
 authors = ["John Thorvald Wodder II <nhmoon@varonathe.org>"]
 repository = "https://github.com/jwodder/nhmoon"
@@ -13,10 +13,10 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.75"
-crossterm = "0.27.0"
+crossterm = "0.28.1"
 lexopt = "0.3.0"
-ratatui = { version = "0.26.0", default-features = false, features = ["crossterm"] }
-thiserror = "1.0.50"
+ratatui = { version = "0.29.0", default-features = false, features = ["crossterm"] }
+thiserror = "2.0.11"
 time = { version = "0.3.30", features = ["local-offset", "macros", "parsing"] }
 
 [lints.rust]

@@ -38,7 +38,7 @@ impl<S: DateStyler> App<S> {
 
     fn draw(&mut self) -> io::Result<()> {
         self.terminal.draw(|frame| {
-            let size = frame.size();
+            let size = frame.area();
             let defstyle = Style::default().white().on_black();
             frame.buffer_mut().set_style(size, defstyle);
             let cal = Calendar::<S>::new();
