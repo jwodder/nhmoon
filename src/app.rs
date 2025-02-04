@@ -84,9 +84,9 @@ impl<S: DateStyler> AppState<S> {
         let cal = Calendar::<S>::new();
         frame.render_stateful_widget(cal, size, &mut self.weeks);
         if self.inner == InnerAppState::Helping {
-            frame.render_widget(Help(BASE_STYLE), size);
+            frame.render_widget(Help, size);
         } else if let InnerAppState::Jumping(ref mut state) = self.inner {
-            frame.render_stateful_widget(JumpTo(BASE_STYLE), size, state);
+            frame.render_stateful_widget(JumpTo, size, state);
         }
     }
 

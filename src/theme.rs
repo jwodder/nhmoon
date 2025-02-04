@@ -14,3 +14,11 @@ pub(crate) const YEAR_STYLE: Style = BASE_STYLE.add_modifier(Modifier::BOLD);
 pub(crate) const MONTH_STYLE: Style = BASE_STYLE.add_modifier(Modifier::BOLD);
 
 pub(crate) const WEEKDAY_STYLE: Style = BASE_STYLE.add_modifier(Modifier::BOLD);
+
+pub(crate) mod jumpto {
+    use super::*;
+
+    pub(crate) const UNFILLED_CELL_STYLE: Style = BASE_STYLE.fg(Color::DarkGray);
+
+    pub(crate) const READY_ENTER_STYLE: Style = BASE_STYLE.add_modifier(Modifier::UNDERLINED);
+}
