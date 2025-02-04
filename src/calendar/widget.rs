@@ -1,10 +1,11 @@
 use super::util::WeekdayExt;
 use super::weeks::WeekWindow;
 use super::DateStyler;
+use crate::theme::{MONTH_STYLE, WEEKDAY_STYLE, YEAR_STYLE};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    style::{Style, Styled, Stylize},
+    style::{Style, Styled},
     text::Span,
     widgets::{Paragraph, StatefulWidget, Widget},
 };
@@ -144,7 +145,7 @@ impl<'a> BufferCanvas<'a> {
     }
 
     fn draw_header(&mut self) {
-        self.mvprint(0, LEFT_MARGIN, HEADER, Some(Style::new().bold()));
+        self.mvprint(0, LEFT_MARGIN, HEADER, Some(WEEKDAY_STYLE));
         self.hline(1, LEFT_MARGIN, ACS_HLINE, MAIN_WIDTH);
     }
 
@@ -153,7 +154,7 @@ impl<'a> BufferCanvas<'a> {
             week_no * WEEK_LINES + HEADER_LINES,
             0,
             year.to_string(),
-            Some(Style::new().bold()),
+            Some(YEAR_STYLE),
         );
     }
 
@@ -162,7 +163,7 @@ impl<'a> BufferCanvas<'a> {
             week_no * WEEK_LINES + HEADER_LINES,
             LEFT_MARGIN + MAIN_WIDTH + MONTH_GUTTER,
             month.to_string(),
-            Some(Style::new().bold()),
+            Some(MONTH_STYLE),
         );
     }
 

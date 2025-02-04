@@ -1,12 +1,9 @@
 use crate::calendar::{Calendar, DateStyler, WeekWindow};
 use crate::help::Help;
 use crate::jumpto::{JumpTo, JumpToInput, JumpToOutput, JumpToState};
+use crate::theme::BASE_STYLE;
 use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::{
-    backend::Backend,
-    style::{Style, Stylize},
-    Frame, Terminal,
-};
+use ratatui::{backend::Backend, Frame, Terminal};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -83,14 +80,13 @@ impl<S: DateStyler> AppState<S> {
 
     fn draw(&mut self, frame: &mut Frame<'_>) {
         let size = frame.area();
-        let defstyle = Style::default().white().on_black();
-        frame.buffer_mut().set_style(size, defstyle);
+        frame.buffer_mut().set_style(size, BASE_STYLE);
         let cal = Calendar::<S>::new();
         frame.render_stateful_widget(cal, size, &mut self.weeks);
         if self.inner == InnerAppState::Helping {
-            frame.render_widget(Help(defstyle), size);
+            frame.render_widget(Help(BASE_STYLE), size);
         } else if let InnerAppState::Jumping(ref mut state) = self.inner {
-            frame.render_stateful_widget(JumpTo(defstyle), size, state);
+            frame.render_stateful_widget(JumpTo(BASE_STYLE), size, state);
         }
     }
 
@@ -200,9 +196,11 @@ enum InnerAppState {
 mod tests {
     use super::*;
     use crate::moon::Phoon;
+    use crate::theme::{
+        BASE_STYLE, FULL_MOON_STYLE, MONTH_STYLE, NEW_MOON_STYLE, WEEKDAY_STYLE, YEAR_STYLE,
+    };
     use ratatui::{
         backend::TestBackend,
-        style::{Style, Stylize},
         text::{Line, Span},
     };
 
@@ -212,159 +210,158 @@ mod tests {
         let calpager = WeekWindow::new(today, Phoon);
         let mut app = App::new(Terminal::new(TestBackend::new(80, 24)).unwrap(), calpager);
         app.draw().unwrap();
-        let base = Style::new().white().on_black();
-        let bold = Style::new().bold().white().on_black();
-        let full_moon = Style::new().light_yellow().bold().on_black();
-        let new_moon = Style::new().light_blue().on_black();
         app.terminal.backend().assert_buffer_lines([
             Line::from_iter([
-                Span::styled("                 ", base),
-                Span::styled(" Su     Mo     Tu     We     Th     Fr     Sa ", bold),
-                Span::styled("                 ", base),
+                Span::styled("                 ", BASE_STYLE),
+                Span::styled(
+                    " Su     Mo     Tu     We     Th     Fr     Sa ",
+                    WEEKDAY_STYLE,
+                ),
+                Span::styled("                 ", BASE_STYLE),
             ]),
             Line::styled(
                 "                 ──────────────────────────────────────────────                 ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("           ", base),
-                Span::styled("2024", bold),
-                Span::styled("  ", base),
-                Span::styled(" 15 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 16 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 17 ", full_moon),
-                Span::styled("    18     19     20     21   ", base),
-                Span::styled("December", bold),
-                Span::styled("       ", base),
+                Span::styled("           ", BASE_STYLE),
+                Span::styled("2024", YEAR_STYLE),
+                Span::styled("  ", BASE_STYLE),
+                Span::styled(" 15 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 16 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 17 ", FULL_MOON_STYLE),
+                Span::styled("    18     19     20     21   ", BASE_STYLE),
+                Span::styled("December", MONTH_STYLE),
+                Span::styled("       ", BASE_STYLE),
             ]),
             Line::styled(
                 "                                                                                ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                  22     23     24     25     26     27     28                  ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                                    ┌──────────────────────────                 ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("                 ", base),
-                Span::styled(" 29 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled(" 30 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled(" 31 ", new_moon),
-                Span::styled(" │ ", base),
-                Span::styled("  1 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled("  2 ", new_moon),
-                Span::styled("     3      4   ", base),
-                Span::styled("January", bold),
-                Span::styled("        ", base),
+                Span::styled("                 ", BASE_STYLE),
+                Span::styled(" 29 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 30 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 31 ", NEW_MOON_STYLE),
+                Span::styled(" │ ", BASE_STYLE),
+                Span::styled("  1 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled("  2 ", NEW_MOON_STYLE),
+                Span::styled("     3      4   ", BASE_STYLE),
+                Span::styled("January", MONTH_STYLE),
+                Span::styled("        ", BASE_STYLE),
             ]),
             Line::styled(
                 "                 ───────────────────┘                                           ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("           ", base),
-                Span::styled("2025", bold),
+                Span::styled("           ", BASE_STYLE),
+                Span::styled("2025", YEAR_STYLE),
                 Span::styled(
                     "    5      6      7      8      9     10     11                  ",
-                    base,
+                    BASE_STYLE,
                 ),
             ]),
             Line::styled(
                 "                                                                                ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("                  12     13    ", base),
-                Span::styled(" 14 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 15 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 16 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 17 ", full_moon),
-                Span::styled("    18                  ", base),
+                Span::styled("                  12     13    ", BASE_STYLE),
+                Span::styled(" 14 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 15 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 16 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 17 ", FULL_MOON_STYLE),
+                Span::styled("    18                  ", BASE_STYLE),
             ]),
             Line::styled(
                 "                                                                                ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                  19     20     21    [22]    23     24     25                  ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                                                         ┌─────                 ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("                  26     27     28    ", base),
-                Span::styled(" 29 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled(" 30 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled(" 31 ", new_moon),
-                Span::styled(" │ ", base),
-                Span::styled("  1 ", new_moon),
-                Span::styled("  ", base),
-                Span::styled("February", bold),
-                Span::styled("       ", base),
+                Span::styled("                  26     27     28    ", BASE_STYLE),
+                Span::styled(" 29 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 30 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 31 ", NEW_MOON_STYLE),
+                Span::styled(" │ ", BASE_STYLE),
+                Span::styled("  1 ", NEW_MOON_STYLE),
+                Span::styled("  ", BASE_STYLE),
+                Span::styled("February", MONTH_STYLE),
+                Span::styled("       ", BASE_STYLE),
             ]),
             Line::styled(
                 "                 ────────────────────────────────────────┘                      ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                   2      3      4      5      6      7      8                  ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                                                                                ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("                   9     10     11     12    ", base),
-                Span::styled(" 13 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 14 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 15 ", full_moon),
-                Span::styled("                 ", base),
+                Span::styled("                   9     10     11     12    ", BASE_STYLE),
+                Span::styled(" 13 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 14 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 15 ", FULL_MOON_STYLE),
+                Span::styled("                 ", BASE_STYLE),
             ]),
             Line::styled(
                 "                                                                                ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                  16     17     18     19     20     21     22                  ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                                                         ┌─────                 ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("                  23     24     25     26    ", base),
-                Span::styled(" 27 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled(" 28 ", new_moon),
-                Span::styled(" │ ", base),
-                Span::styled("  1 ", new_moon),
-                Span::styled("  ", base),
-                Span::styled("March", bold),
-                Span::styled("          ", base),
+                Span::styled("                  23     24     25     26    ", BASE_STYLE),
+                Span::styled(" 27 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 28 ", NEW_MOON_STYLE),
+                Span::styled(" │ ", BASE_STYLE),
+                Span::styled("  1 ", NEW_MOON_STYLE),
+                Span::styled("  ", BASE_STYLE),
+                Span::styled("March", MONTH_STYLE),
+                Span::styled("          ", BASE_STYLE),
             ]),
             Line::styled(
                 "                 ────────────────────────────────────────┘                      ",
-                base,
+                BASE_STYLE,
             ),
         ]);
     }
@@ -376,149 +373,148 @@ mod tests {
         let mut app = App::new(Terminal::new(TestBackend::new(80, 24)).unwrap(), calpager);
         app.handle_key(KeyCode::Char('?'));
         app.draw().unwrap();
-        let base = Style::new().white().on_black();
-        let bold = Style::new().bold().white().on_black();
-        let full_moon = Style::new().light_yellow().bold().on_black();
-        let new_moon = Style::new().light_blue().on_black();
         app.terminal.backend().assert_buffer_lines([
             Line::from_iter([
-                Span::styled("                 ", base),
-                Span::styled(" Su     Mo     Tu     We     Th     Fr     Sa ", bold),
-                Span::styled("                 ", base),
+                Span::styled("                 ", BASE_STYLE),
+                Span::styled(
+                    " Su     Mo     Tu     We     Th     Fr     Sa ",
+                    WEEKDAY_STYLE,
+                ),
+                Span::styled("                 ", BASE_STYLE),
             ]),
             Line::styled(
                 "                 ──────────────────────────────────────────────                 ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("           ", base),
-                Span::styled("2024", bold),
-                Span::styled("  ", base),
-                Span::styled(" 15 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 16 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 17 ", full_moon),
-                Span::styled("    18     19     20     21   ", base),
-                Span::styled("December", bold),
-                Span::styled("       ", base),
+                Span::styled("           ", BASE_STYLE),
+                Span::styled("2024", YEAR_STYLE),
+                Span::styled("  ", BASE_STYLE),
+                Span::styled(" 15 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 16 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 17 ", FULL_MOON_STYLE),
+                Span::styled("    18     19     20     21   ", BASE_STYLE),
+                Span::styled("December", MONTH_STYLE),
+                Span::styled("       ", BASE_STYLE),
             ]),
             Line::styled(
                 "                                                                                ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                  22     23     24     25     26     27     28                  ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                                    ┌──────────────────────────                 ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("                 ", base),
-                Span::styled(" 29 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled(" 30 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled(" 31 ", new_moon),
-                Span::styled(" │ ", base),
-                Span::styled("  1 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled("  2 ", new_moon),
-                Span::styled("     3      4   ", base),
-                Span::styled("January", bold),
-                Span::styled("        ", base),
+                Span::styled("                 ", BASE_STYLE),
+                Span::styled(" 29 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 30 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 31 ", NEW_MOON_STYLE),
+                Span::styled(" │ ", BASE_STYLE),
+                Span::styled("  1 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled("  2 ", NEW_MOON_STYLE),
+                Span::styled("     3      4   ", BASE_STYLE),
+                Span::styled("January", MONTH_STYLE),
+                Span::styled("        ", BASE_STYLE),
             ]),
             Line::styled(
                 "                 ─── ┌───────────── Commands ─────────────┐                     ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("           ", base),
-                Span::styled("2025", bold),
+                Span::styled("           ", BASE_STYLE),
+                Span::styled("2025", YEAR_STYLE),
                 Span::styled(
                     "    5 │j, UP           Scroll up one week  │ 11                  ",
-                    base,
+                    BASE_STYLE,
                 ),
             ]),
             Line::styled(
                 "                     │k, DOWN         Scroll down one week│                     ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([Span::styled(
                 "                  12 │w, PAGE UP      Scroll up one page  │ 18                  ",
-                base,
+                BASE_STYLE,
             )]),
             Line::styled(
                 "                     │z, PAGE DOWN    Scroll down one page│                     ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                  19 │0, HOME         Jump to today       │ 25                  ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                     │?               Show this help      │ ───                 ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
                 Span::styled(
                     "                  26 │q, ESC          Quit                │ ",
-                    base,
+                    BASE_STYLE,
                 ),
-                Span::styled(" 1 ", new_moon),
-                Span::styled("  ", base),
-                Span::styled("February", bold),
-                Span::styled("       ", base),
+                Span::styled(" 1 ", NEW_MOON_STYLE),
+                Span::styled("  ", BASE_STYLE),
+                Span::styled("February", MONTH_STYLE),
+                Span::styled("       ", BASE_STYLE),
             ]),
             Line::styled(
                 "                 ─── │                                    │                     ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                   2 │Press the Any Key to dismiss.       │  8                  ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                     └────────────────────────────────────┘                     ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("                   9     10     11     12    ", base),
-                Span::styled(" 13 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 14 ", full_moon),
-                Span::styled("   ", base),
-                Span::styled(" 15 ", full_moon),
-                Span::styled("                 ", base),
+                Span::styled("                   9     10     11     12    ", BASE_STYLE),
+                Span::styled(" 13 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 14 ", FULL_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 15 ", FULL_MOON_STYLE),
+                Span::styled("                 ", BASE_STYLE),
             ]),
             Line::styled(
                 "                                                                                ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                  16     17     18     19     20     21     22                  ",
-                base,
+                BASE_STYLE,
             ),
             Line::styled(
                 "                                                         ┌─────                 ",
-                base,
+                BASE_STYLE,
             ),
             Line::from_iter([
-                Span::styled("                  23     24     25     26    ", base),
-                Span::styled(" 27 ", new_moon),
-                Span::styled("   ", base),
-                Span::styled(" 28 ", new_moon),
-                Span::styled(" │ ", base),
-                Span::styled("  1 ", new_moon),
-                Span::styled("  ", base),
-                Span::styled("March", bold),
-                Span::styled("          ", base),
+                Span::styled("                  23     24     25     26    ", BASE_STYLE),
+                Span::styled(" 27 ", NEW_MOON_STYLE),
+                Span::styled("   ", BASE_STYLE),
+                Span::styled(" 28 ", NEW_MOON_STYLE),
+                Span::styled(" │ ", BASE_STYLE),
+                Span::styled("  1 ", NEW_MOON_STYLE),
+                Span::styled("  ", BASE_STYLE),
+                Span::styled("March", MONTH_STYLE),
+                Span::styled("          ", BASE_STYLE),
             ]),
             Line::styled(
                 "                 ────────────────────────────────────────┘                      ",
-                base,
+                BASE_STYLE,
             ),
         ]);
     }
