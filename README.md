@@ -12,7 +12,7 @@ highlighting criteria instead.
 [moon]: https://nethackwiki.com/wiki/Time#Moon_phase_and_date
 [NetHack]: https://www.nethack.org
 
-Screenshot of the program on startup on 2023 November 18:
+Screenshot of the program on startup on 2025 February 4:
 
 ![Screenshot of the program](screenshot.png)
 
