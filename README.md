@@ -32,12 +32,20 @@ supported.
 Key Bindings
 ------------
 
-| Key                                | Command              |
-| ---------------------------------- | -------------------- |
-| <kbd>j</kbd>, <kbd>Up</kbd>        | Scroll up one week   |
-| <kbd>k</kbd>, <kbd>Down</kbd>      | Scroll down one week |
-| <kbd>w</kbd>, <kbd>Page Up</kbd>   | Scroll up one page   |
-| <kbd>z</kbd>, <kbd>Page Down</kbd> | Scroll down one page |
-| <kbd>0</kbd>, <kbd>Home</kbd>      | Jump to today        |
-| <kbd>?</kbd>                       | Show help            |
-| <kbd>q</kbd>, <kbd>Escape</kbd>    | Quit                 |
+| Key                                | Command                 |
+| ---------------------------------- | ----------------------- |
+| <kbd>j</kbd>, <kbd>Up</kbd>        | Scroll up one week      |
+| <kbd>k</kbd>, <kbd>Down</kbd>      | Scroll down one week    |
+| <kbd>w</kbd>, <kbd>Page Up</kbd>   | Scroll up one page      |
+| <kbd>z</kbd>, <kbd>Page Down</kbd> | Scroll down one page    |
+| <kbd>0</kbd>, <kbd>Home</kbd>      | Jump to today           |
+| <kbd>g</kbd>                       | Input a date to jump to |
+| <kbd>?</kbd>                       | Show help               |
+| <kbd>q</kbd>, <kbd>Escape</kbd>    | Quit                    |
+
+Pressing <kbd>g</kbd> brings up an input prompt for entering a date in the form
+`YYYY-MM-DD`.  (Enter digits only; the hyphens are filled in for you.)
+Pressing <kbd>-</kbd> or <kbd>+</kbd> at the beginning of the prompt changes
+the sign of the year.  Pressing <kbd>g</kbd>, <kbd>q</kbd>, or
+<kbd>Escape</kbd> at any point while editing dismisses the prompt.  After
+entering eight digits, press <kbd>Enter</kbd> to jump to the given date.
