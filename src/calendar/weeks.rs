@@ -63,6 +63,12 @@ impl<S: DateStyler> WeekWindow<S> {
         }
     }
 
+    pub(crate) fn jump_to_date(&mut self, date: Date) {
+        if let Some(weeks) = self.weeks.as_mut() {
+            *weeks = self.week_factory.around_date(date, weeks.len());
+        }
+    }
+
     pub(crate) fn one_week_forwards(&mut self) -> Result<(), OutOfTimeError> {
         let Some(weeks) = self.weeks.as_mut() else {
             return Ok(());

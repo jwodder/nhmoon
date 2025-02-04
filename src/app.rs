@@ -1,5 +1,6 @@
 use crate::calendar::{Calendar, DateStyler, WeekWindow};
 use crate::help::Help;
+use crate::jumpto::{JumpTo, JumpToInput, JumpToOutput, JumpToState};
 use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     backend::Backend,
@@ -88,12 +89,14 @@ impl<S: DateStyler> AppState<S> {
         frame.render_stateful_widget(cal, size, &mut self.weeks);
         if self.inner == InnerAppState::Helping {
             frame.render_widget(Help(defstyle), size);
+        } else if let InnerAppState::Jumping(ref mut state) = self.inner {
+            frame.render_stateful_widget(JumpTo(defstyle), size, state);
         }
     }
 
     // Returns `false` if the user pressed an invalid key
     fn handle_key(&mut self, key: KeyCode) -> bool {
-        match self.inner {
+        match &mut self.inner {
             InnerAppState::Calendar => match key {
                 KeyCode::Char('j') | KeyCode::Down => self.scroll_down(),
                 KeyCode::Char('k') | KeyCode::Up => self.scroll_up(),
@@ -101,6 +104,10 @@ impl<S: DateStyler> AppState<S> {
                 KeyCode::Char('w') | KeyCode::PageUp => self.page_up(),
                 KeyCode::Char('0') | KeyCode::Home => {
                     self.reset();
+                    true
+                }
+                KeyCode::Char('g') => {
+                    self.inner = InnerAppState::Jumping(JumpToState::new());
                     true
                 }
                 KeyCode::Char('q') | KeyCode::Esc => {
@@ -116,6 +123,41 @@ impl<S: DateStyler> AppState<S> {
             InnerAppState::Helping => {
                 self.inner = InnerAppState::Calendar;
                 true
+            }
+            InnerAppState::Jumping(state) => {
+                if matches!(key, KeyCode::Char('q' | 'g') | KeyCode::Esc) {
+                    self.inner = InnerAppState::Calendar;
+                    true
+                } else {
+                    let output = match key {
+                        KeyCode::Char('-') => state.handle_input(JumpToInput::Negative),
+                        KeyCode::Char('+') => state.handle_input(JumpToInput::Positive),
+                        KeyCode::Char('0') => state.handle_input(JumpToInput::Digit(0)),
+                        KeyCode::Char('1') => state.handle_input(JumpToInput::Digit(1)),
+                        KeyCode::Char('2') => state.handle_input(JumpToInput::Digit(2)),
+                        KeyCode::Char('3') => state.handle_input(JumpToInput::Digit(3)),
+                        KeyCode::Char('4') => state.handle_input(JumpToInput::Digit(4)),
+                        KeyCode::Char('5') => state.handle_input(JumpToInput::Digit(5)),
+                        KeyCode::Char('6') => state.handle_input(JumpToInput::Digit(6)),
+                        KeyCode::Char('7') => state.handle_input(JumpToInput::Digit(7)),
+                        KeyCode::Char('8') => state.handle_input(JumpToInput::Digit(8)),
+                        KeyCode::Char('9') => state.handle_input(JumpToInput::Digit(9)),
+                        KeyCode::Backspace | KeyCode::Delete => {
+                            state.handle_input(JumpToInput::Backspace)
+                        }
+                        KeyCode::Enter => state.handle_input(JumpToInput::Enter),
+                        _ => JumpToOutput::Invalid,
+                    };
+                    match output {
+                        JumpToOutput::Ok => true,
+                        JumpToOutput::Invalid => false,
+                        JumpToOutput::Jump(date) => {
+                            self.inner = InnerAppState::Calendar;
+                            self.jump_to(date);
+                            true
+                        }
+                    }
+                }
             }
             InnerAppState::Quitting => false,
         }
@@ -140,12 +182,17 @@ impl<S: DateStyler> AppState<S> {
     fn reset(&mut self) {
         self.weeks.jump_to_today();
     }
+
+    fn jump_to(&mut self, date: time::Date) {
+        self.weeks.jump_to_date(date);
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum InnerAppState {
     Calendar,
     Helping,
+    Jumping(JumpToState),
     Quitting,
 }
 
