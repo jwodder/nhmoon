@@ -5,21 +5,19 @@ use crossterm::{
     execute,
     style::Print,
 };
-use ratatui::prelude::*;
+use ratatui::{prelude::*, DefaultTerminal};
 use std::io;
-
-pub(crate) type CrossTerminal = Terminal<CrosstermBackend<io::Stdout>>;
 
 #[derive(Debug)]
 pub(crate) struct App<S> {
-    terminal: CrossTerminal,
+    terminal: DefaultTerminal,
     weeks: WeekWindow<S>,
     quitting: bool,
     helping: bool,
 }
 
 impl<S: DateStyler> App<S> {
-    pub(crate) fn new(terminal: CrossTerminal, weeks: WeekWindow<S>) -> App<S> {
+    pub(crate) fn new(terminal: DefaultTerminal, weeks: WeekWindow<S>) -> App<S> {
         App {
             terminal,
             weeks,

@@ -2,17 +2,12 @@ mod app;
 mod calendar;
 mod help;
 mod moon;
-use crate::app::{App, CrossTerminal};
+use crate::app::App;
 use crate::calendar::WeekWindow;
 use crate::moon::Phoon;
 use anyhow::Context;
-use crossterm::{
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
 use lexopt::{Arg, Parser, ValueExt};
-use ratatui::prelude::*;
-use std::io;
+use ratatui::DefaultTerminal;
 use time::{format_description::FormatItem, macros::format_description, Date, OffsetDateTime};
 
 static YMD_FMT: &[FormatItem<'_>] = format_description!("[year]-[month]-[day]");
@@ -89,30 +84,10 @@ fn main() -> anyhow::Result<()> {
 
 fn with_terminal<F, T>(func: F) -> anyhow::Result<T>
 where
-    F: FnOnce(CrossTerminal) -> anyhow::Result<T>,
+    F: FnOnce(DefaultTerminal) -> anyhow::Result<T>,
 {
-    let mut stream = io::stdout();
-    execute!(stream, EnterAlternateScreen).context("failed to start alternate screen")?;
-    if let Err(e) = enable_raw_mode() {
-        let _ = execute!(stream, LeaveAlternateScreen);
-        return Err(e).context("failed to enable raw terminal mode");
-    }
-
-    let original_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |panic| {
-        let _ = reset_terminal();
-        original_hook(panic);
-    }));
-
-    let terminal =
-        Terminal::new(CrosstermBackend::new(stream)).context("failed to create Terminal object")?;
+    let terminal = ratatui::init();
     let r = func(terminal);
-    reset_terminal().context("failed to reset terminal")?;
+    ratatui::restore();
     r
-}
-
-fn reset_terminal() -> io::Result<()> {
-    disable_raw_mode()?;
-    execute!(io::stdout(), LeaveAlternateScreen)?;
-    Ok(())
 }
