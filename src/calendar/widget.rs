@@ -1,7 +1,13 @@
 use super::util::WeekdayExt;
 use super::weeks::WeekWindow;
 use super::DateStyler;
-use ratatui::{prelude::*, style::Styled, widgets::*};
+use ratatui::{
+    buffer::Buffer,
+    layout::{Constraint, Layout, Rect},
+    style::{Style, Styled, Stylize},
+    text::Span,
+    widgets::{Paragraph, StatefulWidget, Widget},
+};
 use std::marker::PhantomData;
 use std::num::NonZeroUsize;
 use time::{
