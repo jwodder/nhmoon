@@ -1,4 +1,4 @@
-use super::util::*;
+use super::util::{NonEmptyVecDeque, Week, WeekFactory};
 use super::DateStyler;
 use std::cmp::Ordering;
 use std::num::NonZeroUsize;

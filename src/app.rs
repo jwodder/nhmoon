@@ -5,7 +5,10 @@ use crossterm::{
     execute,
     style::Print,
 };
-use ratatui::{prelude::*, DefaultTerminal};
+use ratatui::{
+    style::{Style, Stylize},
+    DefaultTerminal,
+};
 use std::io;
 
 #[derive(Debug)]

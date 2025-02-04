@@ -1,4 +1,11 @@
-use ratatui::{layout::Flex, prelude::*, widgets::*};
+use ratatui::{
+    buffer::Buffer,
+    layout::Flex,
+    layout::{Alignment, Layout, Rect},
+    style::Style,
+    text::{Line, Text},
+    widgets::{Block, Clear, Paragraph, Widget},
+};
 
 static TEXT: &[&str] = &[
     "j, UP           Scroll up one week\n",
