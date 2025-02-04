@@ -12,6 +12,7 @@ static TEXT: &[&str] = &[
     "w, PAGE UP      Scroll up one page\n",
     "z, PAGE DOWN    Scroll down one page\n",
     "0, HOME         Jump to today\n",
+    "g               Input date to jump to\n",
     "?               Show this help\n",
     "q, ESC          Quit\n",
     "\n",
