@@ -1,8 +1,7 @@
+use crate::theme::BASE_STYLE;
 use ratatui::{
     buffer::Buffer,
-    layout::Flex,
-    layout::{Alignment, Layout, Rect},
-    style::Style,
+    layout::{Alignment, Flex, Layout, Rect},
     text::{Line, Text},
     widgets::{Block, Clear, Paragraph, Widget},
 };
@@ -13,6 +12,7 @@ static TEXT: &[&str] = &[
     "w, PAGE UP      Scroll up one page\n",
     "z, PAGE DOWN    Scroll down one page\n",
     "0, HOME         Jump to today\n",
+    "g               Input date to jump to\n",
     "?               Show this help\n",
     "q, ESC          Quit\n",
     "\n",
@@ -20,7 +20,7 @@ static TEXT: &[&str] = &[
 ];
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(crate) struct Help(pub(crate) Style);
+pub(crate) struct Help;
 
 impl Widget for Help {
     fn render(self, area: Rect, buf: &mut Buffer) {
@@ -40,7 +40,7 @@ impl Widget for Help {
                     .title(" Commands ")
                     .title_alignment(Alignment::Center),
             )
-            .style(self.0);
+            .style(BASE_STYLE);
         let [help_area] = Layout::horizontal([width]).flex(Flex::Center).areas(area);
         let [help_area] = Layout::vertical([height])
             .flex(Flex::Center)
@@ -52,7 +52,7 @@ impl Widget for Help {
             height: help_area.height,
         };
         Clear.render(outer_area, buf);
-        Block::new().style(self.0).render(outer_area, buf);
+        Block::new().style(BASE_STYLE).render(outer_area, buf);
         para.render(help_area, buf);
     }
 }

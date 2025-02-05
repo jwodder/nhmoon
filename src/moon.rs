@@ -1,5 +1,6 @@
 use crate::calendar::DateStyler;
-use ratatui::style::{Style, Stylize};
+use crate::theme::{BASE_STYLE, FULL_MOON_STYLE, NEW_MOON_STYLE};
+use ratatui::style::Style;
 use time::Date;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -34,9 +35,9 @@ pub(crate) struct Phoon;
 impl DateStyler for Phoon {
     fn date_style(&self, date: Date) -> Style {
         match Phase::for_date(date) {
-            Phase::Normal => Style::new(),
-            Phase::Full => Style::new().light_yellow().bold(),
-            Phase::New => Style::new().light_blue(),
+            Phase::Normal => BASE_STYLE,
+            Phase::Full => FULL_MOON_STYLE,
+            Phase::New => NEW_MOON_STYLE,
         }
     }
 }

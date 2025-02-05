@@ -1,7 +1,7 @@
 [![Project Status: Concept – Minimal or no implementation has been done yet, or the repository is only intended to be a limited example, demo, or proof-of-concept.](https://www.repostatus.org/badges/latest/concept.svg)](https://www.repostatus.org/#concept)
 [![CI Status](https://github.com/jwodder/nhmoon/actions/workflows/test.yml/badge.svg)](https://github.com/jwodder/nhmoon/actions/workflows/test.yml)
 [![codecov.io](https://codecov.io/gh/jwodder/nhmoon/branch/master/graph/badge.svg)](https://codecov.io/gh/jwodder/nhmoon)
-[![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.74-orange)](https://www.rust-lang.org)
+[![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.80-orange)](https://www.rust-lang.org)
 [![MIT License](https://img.shields.io/github/license/jwodder/nhmoon.svg)](https://opensource.org/licenses/MIT)
 
 `nhmoon` is a Rust program for viewing & scrolling through a slice of the
@@ -32,12 +32,20 @@ supported.
 Key Bindings
 ------------
 
-| Key                                | Command              |
-| ---------------------------------- | -------------------- |
-| <kbd>j</kbd>, <kbd>Up</kbd>        | Scroll up one week   |
-| <kbd>k</kbd>, <kbd>Down</kbd>      | Scroll down one week |
-| <kbd>w</kbd>, <kbd>Page Up</kbd>   | Scroll up one page   |
-| <kbd>z</kbd>, <kbd>Page Down</kbd> | Scroll down one page |
-| <kbd>0</kbd>, <kbd>Home</kbd>      | Jump to today        |
-| <kbd>?</kbd>                       | Show help            |
-| <kbd>q</kbd>, <kbd>Escape</kbd>    | Quit                 |
+| Key                                | Command                 |
+| ---------------------------------- | ----------------------- |
+| <kbd>j</kbd>, <kbd>Up</kbd>        | Scroll up one week      |
+| <kbd>k</kbd>, <kbd>Down</kbd>      | Scroll down one week    |
+| <kbd>w</kbd>, <kbd>Page Up</kbd>   | Scroll up one page      |
+| <kbd>z</kbd>, <kbd>Page Down</kbd> | Scroll down one page    |
+| <kbd>0</kbd>, <kbd>Home</kbd>      | Jump to today           |
+| <kbd>g</kbd>                       | Input a date to jump to |
+| <kbd>?</kbd>                       | Show help               |
+| <kbd>q</kbd>, <kbd>Escape</kbd>    | Quit                    |
+
+Pressing <kbd>g</kbd> brings up an input prompt for entering a date in the form
+`YYYY-MM-DD`.  (Enter digits only; the hyphens are filled in for you.)
+Pressing <kbd>-</kbd> or <kbd>+</kbd> at the beginning of the prompt changes
+the sign of the year.  Pressing <kbd>g</kbd>, <kbd>q</kbd>, or
+<kbd>Escape</kbd> at any point while editing dismisses the prompt.  After
+entering eight digits, press <kbd>Enter</kbd> to jump to the given date.

@@ -1,7 +1,9 @@
 mod app;
 mod calendar;
 mod help;
+mod jumpto;
 mod moon;
+mod theme;
 use crate::app::App;
 use crate::calendar::WeekWindow;
 use crate::moon::Phoon;
