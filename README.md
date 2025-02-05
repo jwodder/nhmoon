@@ -4,10 +4,10 @@
 [![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.80-orange)](https://www.rust-lang.org)
 [![MIT License](https://img.shields.io/github/license/jwodder/nhmoon.svg)](https://opensource.org/licenses/MIT)
 
-`nhmoon` is a Rust program for viewing & scrolling through a slice of the
-calendar in your terminal.  Days with [new or full moons][moon] in [NetHack][]
-are highlighted, though the code can easily be adjusted to use different
-highlighting criteria instead.
+`nhmoon` is a [Rust](https://www.rust-lang.org) program for viewing & scrolling
+through a slice of the calendar in your terminal.  Days with [new or full
+moons][moon] in [NetHack][] are highlighted, though the code can easily be
+adjusted to use different highlighting criteria instead.
 
 [moon]: https://nethackwiki.com/wiki/Time#Moon_phase_and_date
 [NetHack]: https://www.nethack.org
@@ -15,6 +15,15 @@ highlighting criteria instead.
 Screenshot of the program on startup on 2025 February 4:
 
 ![Screenshot of the program](screenshot.png)
+
+Installation
+============
+
+In order to install `nhmoon`, you first need to have [Rust and Cargo
+installed](https://www.rust-lang.org/tools/install).  You can then build the
+latest version of `nhmoon` and install it in `~/.cargo/bin` by running:
+
+    cargo install --git https://github.com/jwodder/nhmoon
 
 Usage
 =====
