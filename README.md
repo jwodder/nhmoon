@@ -1,7 +1,7 @@
 [![Project Status: Concept – Minimal or no implementation has been done yet, or the repository is only intended to be a limited example, demo, or proof-of-concept.](https://www.repostatus.org/badges/latest/concept.svg)](https://www.repostatus.org/#concept)
 [![CI Status](https://github.com/jwodder/nhmoon/actions/workflows/test.yml/badge.svg)](https://github.com/jwodder/nhmoon/actions/workflows/test.yml)
 [![codecov.io](https://codecov.io/gh/jwodder/nhmoon/branch/master/graph/badge.svg)](https://codecov.io/gh/jwodder/nhmoon)
-[![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.74-orange)](https://www.rust-lang.org)
+[![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.80-orange)](https://www.rust-lang.org)
 [![MIT License](https://img.shields.io/github/license/jwodder/nhmoon.svg)](https://opensource.org/licenses/MIT)
 
 `nhmoon` is a Rust program for viewing & scrolling through a slice of the
