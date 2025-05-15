@@ -99,7 +99,7 @@ impl Week {
             .iter()
             .flatten()
             .map(|sd| (sd.year(), sd.month()))
-            .last()
+            .next_back()
             .expect("Week should contain at least one Some")
     }
 }
