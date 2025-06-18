@@ -3,7 +3,13 @@ use crate::help::Help;
 use crate::jumpto::{JumpTo, JumpToInput, JumpToOutput, JumpToState};
 use crate::theme::BASE_STYLE;
 use crossterm::event::{read, KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{backend::Backend, Terminal};
+use ratatui::{
+    backend::Backend,
+    buffer::Buffer,
+    layout::Rect,
+    widgets::{StatefulWidget, Widget},
+    Terminal,
+};
 use std::io::{self, Write};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -29,17 +35,7 @@ impl<S: DateStyler> App<S> {
     }
 
     fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-        terminal.draw(|frame| {
-            let size = frame.area();
-            frame.buffer_mut().set_style(size, BASE_STYLE);
-            let cal = Calendar::<S>::new();
-            frame.render_stateful_widget(cal, size, &mut self.weeks);
-            if self.state == AppState::Helping {
-                frame.render_widget(Help, size);
-            } else if let AppState::Jumping(ref mut state) = self.state {
-                frame.render_stateful_widget(JumpTo, size, state);
-            }
-        })?;
+        terminal.draw(|frame| frame.render_widget(self, frame.area()))?;
         Ok(())
     }
 
@@ -160,6 +156,19 @@ impl<S: DateStyler> App<S> {
     }
 }
 
+impl<S: DateStyler> Widget for &mut App<S> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        buf.set_style(area, BASE_STYLE);
+        let cal = Calendar::<S>::new();
+        cal.render(area, buf, &mut self.weeks);
+        if self.state == AppState::Helping {
+            Help.render(area, buf);
+        } else if let AppState::Jumping(ref mut state) = self.state {
+            JumpTo.render(area, buf, state);
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum AppState {
     Calendar,
@@ -175,15 +184,15 @@ mod tests {
     use crate::theme::{
         BASE_STYLE, FULL_MOON_STYLE, MONTH_STYLE, NEW_MOON_STYLE, WEEKDAY_STYLE, YEAR_STYLE,
     };
-    use ratatui::{backend::TestBackend, buffer::Buffer, layout::Rect};
 
     #[test]
     fn test_across_year() {
         let today = time::Date::from_calendar_date(2025, time::Month::January, 22).unwrap();
         let calpager = WeekWindow::new(today, Phoon);
         let mut app = App::new(calpager);
-        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
-        app.draw(&mut terminal).unwrap();
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+        app.render(area, &mut buffer);
         let mut expected = Buffer::with_lines([
             "                  Su     Mo     Tu     We     Th     Fr     Sa                  ",
             "                 ──────────────────────────────────────────────                 ",
@@ -240,7 +249,7 @@ mod tests {
         expected.set_style(Rect::new(52, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(59, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(65, 22, 5, 1), MONTH_STYLE);
-        assert_eq!(terminal.backend().buffer(), &expected);
+        assert_eq!(buffer, expected);
     }
 
     #[test]
@@ -249,8 +258,9 @@ mod tests {
         let calpager = WeekWindow::new(today, Phoon);
         let mut app = App::new(calpager);
         app.handle_key(KeyCode::Char('?'));
-        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
-        app.draw(&mut terminal).unwrap();
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+        app.render(area, &mut buffer);
         let mut expected = Buffer::with_lines([
             "                  Su     Mo     Tu     We     Th     Fr     Sa                  ",
             "                 ──────────────────────────────────────────────                 ",
@@ -296,6 +306,6 @@ mod tests {
         expected.set_style(Rect::new(52, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(59, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(65, 22, 5, 1), MONTH_STYLE);
-        assert_eq!(terminal.backend().buffer(), &expected);
+        assert_eq!(buffer, expected);
     }
 }
