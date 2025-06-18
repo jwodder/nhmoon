@@ -9,7 +9,6 @@ use crate::calendar::WeekWindow;
 use crate::moon::Phoon;
 use anyhow::Context;
 use lexopt::{Arg, Parser, ValueExt};
-use ratatui::DefaultTerminal;
 use time::{format_description::FormatItem, macros::format_description, Date, OffsetDateTime};
 
 static YMD_FMT: &[FormatItem<'_>] = format_description!("[year]-[month]-[day]");
@@ -52,15 +51,14 @@ impl Command {
                 let today = OffsetDateTime::now_local()
                     .context("failed to determine local date")?
                     .date();
-                with_terminal(|mut terminal| {
-                    terminal.hide_cursor().context("failed to hide cursor")?;
-                    let mut calpager = WeekWindow::new(today, Phoon);
-                    if let Some(date) = date {
-                        calpager = calpager.start_date(date);
-                    }
-                    App::new(terminal, calpager).run()?;
-                    Ok(())
-                })
+                let mut calpager = WeekWindow::new(today, Phoon);
+                if let Some(date) = date {
+                    calpager = calpager.start_date(date);
+                }
+                let terminal = ratatui::init();
+                let r = App::new(terminal, calpager).run();
+                ratatui::restore();
+                r.map_err(Into::into)
             }
             Command::Help => {
                 println!("Usage: nhmoon [YYYY-MM-DD]");
@@ -82,14 +80,4 @@ impl Command {
 
 fn main() -> anyhow::Result<()> {
     Command::from_parser(Parser::from_env())?.run()
-}
-
-fn with_terminal<F, T>(func: F) -> anyhow::Result<T>
-where
-    F: FnOnce(DefaultTerminal) -> anyhow::Result<T>,
-{
-    let terminal = ratatui::init();
-    let r = func(terminal);
-    ratatui::restore();
-    r
 }
