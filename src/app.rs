@@ -2,45 +2,48 @@ use crate::calendar::{Calendar, DateStyler, WeekWindow};
 use crate::help::Help;
 use crate::jumpto::{JumpTo, JumpToInput, JumpToOutput, JumpToState};
 use crate::theme::BASE_STYLE;
-use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::{backend::Backend, Frame, Terminal};
+use crossterm::event::{read, KeyCode, KeyEvent, KeyModifiers};
+use ratatui::{
+    backend::Backend,
+    buffer::Buffer,
+    layout::Rect,
+    widgets::{StatefulWidget, Widget},
+    Terminal,
+};
 use std::io::{self, Write};
 
-#[derive(Debug)]
-pub(crate) struct App<S, B: Backend> {
-    terminal: Terminal<B>,
-    state: AppState<S>,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct App<S> {
+    weeks: WeekWindow<S>,
+    state: AppState,
 }
 
-impl<S: DateStyler, B: Backend> App<S, B> {
-    pub(crate) fn new(terminal: Terminal<B>, weeks: WeekWindow<S>) -> App<S, B> {
+impl<S: DateStyler> App<S> {
+    pub(crate) fn new(weeks: WeekWindow<S>) -> App<S> {
         App {
-            terminal,
-            state: AppState::new(weeks),
+            weeks,
+            state: AppState::Calendar,
         }
     }
 
-    pub(crate) fn run(mut self) -> io::Result<()> {
-        while !self.state.quitting() {
-            self.draw()?;
+    pub(crate) fn run<B: Backend>(mut self, mut terminal: Terminal<B>) -> io::Result<()> {
+        while !self.quitting() {
+            self.draw(&mut terminal)?;
             self.handle_input()?;
         }
         Ok(())
     }
 
-    fn draw(&mut self) -> io::Result<()> {
-        self.terminal.draw(|frame| self.state.draw(frame))?;
+    fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+        terminal.draw(|frame| frame.render_widget(self, frame.area()))?;
         Ok(())
     }
 
     fn handle_input(&mut self) -> io::Result<()> {
         let normal_modifiers = KeyModifiers::NONE | KeyModifiers::SHIFT;
-        if let Event::Key(KeyEvent {
-            code,
-            modifiers,
-            kind: KeyEventKind::Press,
-            ..
-        }) = read()?
+        if let Some(KeyEvent {
+            code, modifiers, ..
+        }) = read()?.as_key_press_event()
         {
             if !normal_modifiers.contains(modifiers) || !self.handle_key(code) {
                 self.beep()?;
@@ -51,49 +54,10 @@ impl<S: DateStyler, B: Backend> App<S, B> {
         Ok(())
     }
 
-    fn handle_key(&mut self, key: KeyCode) -> bool {
-        self.state.handle_key(key)
-    }
-
-    fn beep(&self) -> io::Result<()> {
-        io::stdout().write_all(b"\x07")
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct AppState<S> {
-    weeks: WeekWindow<S>,
-    inner: InnerAppState,
-}
-
-impl<S: DateStyler> AppState<S> {
-    fn new(weeks: WeekWindow<S>) -> AppState<S> {
-        AppState {
-            weeks,
-            inner: InnerAppState::Calendar,
-        }
-    }
-
-    fn quitting(&self) -> bool {
-        self.inner == InnerAppState::Quitting
-    }
-
-    fn draw(&mut self, frame: &mut Frame<'_>) {
-        let size = frame.area();
-        frame.buffer_mut().set_style(size, BASE_STYLE);
-        let cal = Calendar::<S>::new();
-        frame.render_stateful_widget(cal, size, &mut self.weeks);
-        if self.inner == InnerAppState::Helping {
-            frame.render_widget(Help, size);
-        } else if let InnerAppState::Jumping(ref mut state) = self.inner {
-            frame.render_stateful_widget(JumpTo, size, state);
-        }
-    }
-
     // Returns `false` if the user pressed an invalid key
     fn handle_key(&mut self, key: KeyCode) -> bool {
-        match &mut self.inner {
-            InnerAppState::Calendar => match key {
+        match &mut self.state {
+            AppState::Calendar => match key {
                 KeyCode::Char('j') | KeyCode::Down => self.scroll_down(),
                 KeyCode::Char('k') | KeyCode::Up => self.scroll_up(),
                 KeyCode::Char('z') | KeyCode::PageDown => self.page_down(),
@@ -103,26 +67,26 @@ impl<S: DateStyler> AppState<S> {
                     true
                 }
                 KeyCode::Char('g') => {
-                    self.inner = InnerAppState::Jumping(JumpToState::new());
+                    self.state = AppState::Jumping(JumpToState::new());
                     true
                 }
                 KeyCode::Char('q') | KeyCode::Esc => {
-                    self.inner = InnerAppState::Quitting;
+                    self.state = AppState::Quitting;
                     true
                 }
                 KeyCode::Char('?') => {
-                    self.inner = InnerAppState::Helping;
+                    self.state = AppState::Helping;
                     true
                 }
                 _ => false,
             },
-            InnerAppState::Helping => {
-                self.inner = InnerAppState::Calendar;
+            AppState::Helping => {
+                self.state = AppState::Calendar;
                 true
             }
-            InnerAppState::Jumping(state) => {
+            AppState::Jumping(state) => {
                 if matches!(key, KeyCode::Char('q' | 'g') | KeyCode::Esc) {
-                    self.inner = InnerAppState::Calendar;
+                    self.state = AppState::Calendar;
                     true
                 } else {
                     let output = match key {
@@ -148,15 +112,23 @@ impl<S: DateStyler> AppState<S> {
                         JumpToOutput::Ok => true,
                         JumpToOutput::Invalid => false,
                         JumpToOutput::Jump(date) => {
-                            self.inner = InnerAppState::Calendar;
+                            self.state = AppState::Calendar;
                             self.jump_to(date);
                             true
                         }
                     }
                 }
             }
-            InnerAppState::Quitting => false,
+            AppState::Quitting => false,
         }
+    }
+
+    fn beep(&self) -> io::Result<()> {
+        io::stdout().write_all(b"\x07")
+    }
+
+    fn quitting(&self) -> bool {
+        self.state == AppState::Quitting
     }
 
     fn scroll_down(&mut self) -> bool {
@@ -184,8 +156,21 @@ impl<S: DateStyler> AppState<S> {
     }
 }
 
+impl<S: DateStyler> Widget for &mut App<S> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        buf.set_style(area, BASE_STYLE);
+        let cal = Calendar::<S>::new();
+        cal.render(area, buf, &mut self.weeks);
+        if self.state == AppState::Helping {
+            Help.render(area, buf);
+        } else if let AppState::Jumping(ref mut state) = self.state {
+            JumpTo.render(area, buf, state);
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum InnerAppState {
+enum AppState {
     Calendar,
     Helping,
     Jumping(JumpToState),
@@ -199,14 +184,15 @@ mod tests {
     use crate::theme::{
         BASE_STYLE, FULL_MOON_STYLE, MONTH_STYLE, NEW_MOON_STYLE, WEEKDAY_STYLE, YEAR_STYLE,
     };
-    use ratatui::{backend::TestBackend, buffer::Buffer, layout::Rect};
 
     #[test]
     fn test_across_year() {
         let today = time::Date::from_calendar_date(2025, time::Month::January, 22).unwrap();
         let calpager = WeekWindow::new(today, Phoon);
-        let mut app = App::new(Terminal::new(TestBackend::new(80, 24)).unwrap(), calpager);
-        app.draw().unwrap();
+        let mut app = App::new(calpager);
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+        app.render(area, &mut buffer);
         let mut expected = Buffer::with_lines([
             "                  Su     Mo     Tu     We     Th     Fr     Sa                  ",
             "                 ──────────────────────────────────────────────                 ",
@@ -263,16 +249,18 @@ mod tests {
         expected.set_style(Rect::new(52, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(59, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(65, 22, 5, 1), MONTH_STYLE);
-        assert_eq!(app.terminal.backend().buffer(), &expected);
+        assert_eq!(buffer, expected);
     }
 
     #[test]
     fn test_help() {
         let today = time::Date::from_calendar_date(2025, time::Month::January, 22).unwrap();
         let calpager = WeekWindow::new(today, Phoon);
-        let mut app = App::new(Terminal::new(TestBackend::new(80, 24)).unwrap(), calpager);
+        let mut app = App::new(calpager);
         app.handle_key(KeyCode::Char('?'));
-        app.draw().unwrap();
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buffer = Buffer::empty(area);
+        app.render(area, &mut buffer);
         let mut expected = Buffer::with_lines([
             "                  Su     Mo     Tu     We     Th     Fr     Sa                  ",
             "                 ──────────────────────────────────────────────                 ",
@@ -318,6 +306,6 @@ mod tests {
         expected.set_style(Rect::new(52, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(59, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(65, 22, 5, 1), MONTH_STYLE);
-        assert_eq!(app.terminal.backend().buffer(), &expected);
+        assert_eq!(buffer, expected);
     }
 }

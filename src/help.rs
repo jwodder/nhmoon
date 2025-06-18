@@ -2,21 +2,21 @@ use crate::theme::BASE_STYLE;
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Flex, Layout, Rect},
-    text::{Line, Text},
+    text::Text,
     widgets::{Block, Clear, Paragraph, Widget},
 };
 
 static TEXT: &[&str] = &[
-    "j, UP           Scroll up one week\n",
-    "k, DOWN         Scroll down one week\n",
-    "w, PAGE UP      Scroll up one page\n",
-    "z, PAGE DOWN    Scroll down one page\n",
-    "0, HOME         Jump to today\n",
-    "g               Input date to jump to\n",
-    "?               Show this help\n",
-    "q, ESC          Quit\n",
-    "\n",
-    "Press the Any Key to dismiss.\n",
+    "j, UP           Scroll up one week",
+    "k, DOWN         Scroll down one week",
+    "w, PAGE UP      Scroll up one page",
+    "z, PAGE DOWN    Scroll down one page",
+    "0, HOME         Jump to today",
+    "g               Input date to jump to",
+    "?               Show this help",
+    "q, ESC          Quit",
+    "",
+    "Press the Any Key to dismiss.",
 ];
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -24,8 +24,7 @@ pub(crate) struct Help;
 
 impl Widget for Help {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let lines = TEXT.iter().map(|&s| Line::raw(s)).collect::<Vec<_>>();
-        let text = Text::from(lines);
+        let text = Text::from_iter(TEXT.iter().copied());
         let height = u16::try_from(text.height())
             .unwrap_or(u16::MAX)
             .min(area.height)
@@ -48,7 +47,7 @@ impl Widget for Help {
         let outer_area = Rect {
             x: help_area.x.saturating_sub(1),
             y: help_area.y,
-            width: help_area.width.saturating_add(2),
+            width: help_area.width.saturating_add(2).min(area.width),
             height: help_area.height,
         };
         Clear.render(outer_area, buf);
