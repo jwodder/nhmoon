@@ -3,23 +3,25 @@ use crate::help::Help;
 use crate::jumpto::{JumpTo, JumpToInput, JumpToOutput, JumpToState};
 use crate::theme::BASE_STYLE;
 use crossterm::event::{read, KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{backend::Backend, Frame, Terminal};
+use ratatui::{backend::Backend, Terminal};
 use std::io::{self, Write};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct App<S> {
-    state: AppState<S>,
+    weeks: WeekWindow<S>,
+    state: AppState,
 }
 
 impl<S: DateStyler> App<S> {
     pub(crate) fn new(weeks: WeekWindow<S>) -> App<S> {
         App {
-            state: AppState::new(weeks),
+            weeks,
+            state: AppState::Calendar,
         }
     }
 
     pub(crate) fn run<B: Backend>(mut self, mut terminal: Terminal<B>) -> io::Result<()> {
-        while !self.state.quitting() {
+        while !self.quitting() {
             self.draw(&mut terminal)?;
             self.handle_input()?;
         }
@@ -27,7 +29,17 @@ impl<S: DateStyler> App<S> {
     }
 
     fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
-        terminal.draw(|frame| self.state.draw(frame))?;
+        terminal.draw(|frame| {
+            let size = frame.area();
+            frame.buffer_mut().set_style(size, BASE_STYLE);
+            let cal = Calendar::<S>::new();
+            frame.render_stateful_widget(cal, size, &mut self.weeks);
+            if self.state == AppState::Helping {
+                frame.render_widget(Help, size);
+            } else if let AppState::Jumping(ref mut state) = self.state {
+                frame.render_stateful_widget(JumpTo, size, state);
+            }
+        })?;
         Ok(())
     }
 
@@ -46,49 +58,10 @@ impl<S: DateStyler> App<S> {
         Ok(())
     }
 
-    fn handle_key(&mut self, key: KeyCode) -> bool {
-        self.state.handle_key(key)
-    }
-
-    fn beep(&self) -> io::Result<()> {
-        io::stdout().write_all(b"\x07")
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct AppState<S> {
-    weeks: WeekWindow<S>,
-    inner: InnerAppState,
-}
-
-impl<S: DateStyler> AppState<S> {
-    fn new(weeks: WeekWindow<S>) -> AppState<S> {
-        AppState {
-            weeks,
-            inner: InnerAppState::Calendar,
-        }
-    }
-
-    fn quitting(&self) -> bool {
-        self.inner == InnerAppState::Quitting
-    }
-
-    fn draw(&mut self, frame: &mut Frame<'_>) {
-        let size = frame.area();
-        frame.buffer_mut().set_style(size, BASE_STYLE);
-        let cal = Calendar::<S>::new();
-        frame.render_stateful_widget(cal, size, &mut self.weeks);
-        if self.inner == InnerAppState::Helping {
-            frame.render_widget(Help, size);
-        } else if let InnerAppState::Jumping(ref mut state) = self.inner {
-            frame.render_stateful_widget(JumpTo, size, state);
-        }
-    }
-
     // Returns `false` if the user pressed an invalid key
     fn handle_key(&mut self, key: KeyCode) -> bool {
-        match &mut self.inner {
-            InnerAppState::Calendar => match key {
+        match &mut self.state {
+            AppState::Calendar => match key {
                 KeyCode::Char('j') | KeyCode::Down => self.scroll_down(),
                 KeyCode::Char('k') | KeyCode::Up => self.scroll_up(),
                 KeyCode::Char('z') | KeyCode::PageDown => self.page_down(),
@@ -98,26 +71,26 @@ impl<S: DateStyler> AppState<S> {
                     true
                 }
                 KeyCode::Char('g') => {
-                    self.inner = InnerAppState::Jumping(JumpToState::new());
+                    self.state = AppState::Jumping(JumpToState::new());
                     true
                 }
                 KeyCode::Char('q') | KeyCode::Esc => {
-                    self.inner = InnerAppState::Quitting;
+                    self.state = AppState::Quitting;
                     true
                 }
                 KeyCode::Char('?') => {
-                    self.inner = InnerAppState::Helping;
+                    self.state = AppState::Helping;
                     true
                 }
                 _ => false,
             },
-            InnerAppState::Helping => {
-                self.inner = InnerAppState::Calendar;
+            AppState::Helping => {
+                self.state = AppState::Calendar;
                 true
             }
-            InnerAppState::Jumping(state) => {
+            AppState::Jumping(state) => {
                 if matches!(key, KeyCode::Char('q' | 'g') | KeyCode::Esc) {
-                    self.inner = InnerAppState::Calendar;
+                    self.state = AppState::Calendar;
                     true
                 } else {
                     let output = match key {
@@ -143,15 +116,23 @@ impl<S: DateStyler> AppState<S> {
                         JumpToOutput::Ok => true,
                         JumpToOutput::Invalid => false,
                         JumpToOutput::Jump(date) => {
-                            self.inner = InnerAppState::Calendar;
+                            self.state = AppState::Calendar;
                             self.jump_to(date);
                             true
                         }
                     }
                 }
             }
-            InnerAppState::Quitting => false,
+            AppState::Quitting => false,
         }
+    }
+
+    fn beep(&self) -> io::Result<()> {
+        io::stdout().write_all(b"\x07")
+    }
+
+    fn quitting(&self) -> bool {
+        self.state == AppState::Quitting
     }
 
     fn scroll_down(&mut self) -> bool {
@@ -180,7 +161,7 @@ impl<S: DateStyler> AppState<S> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum InnerAppState {
+enum AppState {
     Calendar,
     Helping,
     Jumping(JumpToState),
