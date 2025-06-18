@@ -2,7 +2,7 @@ use crate::calendar::{Calendar, DateStyler, WeekWindow};
 use crate::help::Help;
 use crate::jumpto::{JumpTo, JumpToInput, JumpToOutput, JumpToState};
 use crate::theme::BASE_STYLE;
-use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{read, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{backend::Backend, Frame, Terminal};
 use std::io::{self, Write};
 
@@ -35,12 +35,9 @@ impl<S: DateStyler, B: Backend> App<S, B> {
 
     fn handle_input(&mut self) -> io::Result<()> {
         let normal_modifiers = KeyModifiers::NONE | KeyModifiers::SHIFT;
-        if let Event::Key(KeyEvent {
-            code,
-            modifiers,
-            kind: KeyEventKind::Press,
-            ..
-        }) = read()?
+        if let Some(KeyEvent {
+            code, modifiers, ..
+        }) = read()?.as_key_press_event()
         {
             if !normal_modifiers.contains(modifiers) || !self.handle_key(code) {
                 self.beep()?;
