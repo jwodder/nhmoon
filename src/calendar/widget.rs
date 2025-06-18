@@ -5,9 +5,9 @@ use crate::theme::{MONTH_STYLE, WEEKDAY_STYLE, YEAR_STYLE};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    style::{Style, Styled},
+    style::Style,
     text::Span,
-    widgets::{Paragraph, StatefulWidget, Widget},
+    widgets::{StatefulWidget, Widget},
 };
 use std::marker::PhantomData;
 use std::num::NonZeroUsize;
@@ -206,23 +206,16 @@ impl<'a> BufferCanvas<'a> {
     }
 
     fn mvprint<S: AsRef<str>>(&mut self, y: u16, x: u16, s: S, style: Option<Style>) {
-        if y < self.area.height && x < self.area.width {
-            let text = s.as_ref().set_style(style.unwrap_or_default());
-            let width = u16::try_from(text.width()).unwrap_or(u16::MAX);
-            // Using a Paragraph lets us truncate text that extends beyond the
-            // calendar's area, though we need to be sure that the Rect passed
-            // to the Paragraph is entirely within the frame lest a panic
-            // result.
-            Paragraph::new(text).render(
-                Rect {
-                    x: x + self.area.x,
-                    y: y + self.area.y,
-                    width: (self.area.width - x).min(width),
-                    height: 1,
-                },
-                self.buf,
-            );
-        }
+        Span::styled(s.as_ref(), style.unwrap_or_default()).render(
+            Rect {
+                x: x + self.area.x,
+                y: y + self.area.y,
+                width: self.area.width,
+                height: 1,
+            }
+            .intersection(self.area),
+            self.buf,
+        );
     }
 
     fn hline(&mut self, y: u16, x: u16, ch: char, length: u16) {
