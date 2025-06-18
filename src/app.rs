@@ -7,29 +7,27 @@ use ratatui::{backend::Backend, Frame, Terminal};
 use std::io::{self, Write};
 
 #[derive(Debug)]
-pub(crate) struct App<S, B: Backend> {
-    terminal: Terminal<B>,
+pub(crate) struct App<S> {
     state: AppState<S>,
 }
 
-impl<S: DateStyler, B: Backend> App<S, B> {
-    pub(crate) fn new(terminal: Terminal<B>, weeks: WeekWindow<S>) -> App<S, B> {
+impl<S: DateStyler> App<S> {
+    pub(crate) fn new(weeks: WeekWindow<S>) -> App<S> {
         App {
-            terminal,
             state: AppState::new(weeks),
         }
     }
 
-    pub(crate) fn run(mut self) -> io::Result<()> {
+    pub(crate) fn run<B: Backend>(mut self, mut terminal: Terminal<B>) -> io::Result<()> {
         while !self.state.quitting() {
-            self.draw()?;
+            self.draw(&mut terminal)?;
             self.handle_input()?;
         }
         Ok(())
     }
 
-    fn draw(&mut self) -> io::Result<()> {
-        self.terminal.draw(|frame| self.state.draw(frame))?;
+    fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+        terminal.draw(|frame| self.state.draw(frame))?;
         Ok(())
     }
 
@@ -202,8 +200,9 @@ mod tests {
     fn test_across_year() {
         let today = time::Date::from_calendar_date(2025, time::Month::January, 22).unwrap();
         let calpager = WeekWindow::new(today, Phoon);
-        let mut app = App::new(Terminal::new(TestBackend::new(80, 24)).unwrap(), calpager);
-        app.draw().unwrap();
+        let mut app = App::new(calpager);
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        app.draw(&mut terminal).unwrap();
         let mut expected = Buffer::with_lines([
             "                  Su     Mo     Tu     We     Th     Fr     Sa                  ",
             "                 ──────────────────────────────────────────────                 ",
@@ -260,16 +259,17 @@ mod tests {
         expected.set_style(Rect::new(52, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(59, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(65, 22, 5, 1), MONTH_STYLE);
-        assert_eq!(app.terminal.backend().buffer(), &expected);
+        assert_eq!(terminal.backend().buffer(), &expected);
     }
 
     #[test]
     fn test_help() {
         let today = time::Date::from_calendar_date(2025, time::Month::January, 22).unwrap();
         let calpager = WeekWindow::new(today, Phoon);
-        let mut app = App::new(Terminal::new(TestBackend::new(80, 24)).unwrap(), calpager);
+        let mut app = App::new(calpager);
         app.handle_key(KeyCode::Char('?'));
-        app.draw().unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        app.draw(&mut terminal).unwrap();
         let mut expected = Buffer::with_lines([
             "                  Su     Mo     Tu     We     Th     Fr     Sa                  ",
             "                 ──────────────────────────────────────────────                 ",
@@ -315,6 +315,6 @@ mod tests {
         expected.set_style(Rect::new(52, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(59, 22, 4, 1), NEW_MOON_STYLE);
         expected.set_style(Rect::new(65, 22, 5, 1), MONTH_STYLE);
-        assert_eq!(app.terminal.backend().buffer(), &expected);
+        assert_eq!(terminal.backend().buffer(), &expected);
     }
 }

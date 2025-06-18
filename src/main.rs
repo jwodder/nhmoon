@@ -56,7 +56,7 @@ impl Command {
                     calpager = calpager.start_date(date);
                 }
                 let terminal = ratatui::init();
-                let r = App::new(terminal, calpager).run();
+                let r = App::new(calpager).run(terminal);
                 ratatui::restore();
                 r.map_err(Into::into)
             }
