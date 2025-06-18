@@ -45,7 +45,9 @@ impl<S: DateStyler> App<S> {
             code, modifiers, ..
         }) = read()?.as_key_press_event()
         {
-            if !normal_modifiers.contains(modifiers) || !self.handle_key(code) {
+            if modifiers == KeyModifiers::CONTROL && code == KeyCode::Char('c') {
+                self.state = AppState::Quitting;
+            } else if !normal_modifiers.contains(modifiers) || !self.handle_key(code) {
                 self.beep()?;
             }
         }
