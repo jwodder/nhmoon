@@ -47,7 +47,7 @@ impl Widget for Help {
         let outer_area = Rect {
             x: help_area.x.saturating_sub(1),
             y: help_area.y,
-            width: help_area.width.saturating_add(2),
+            width: help_area.width.saturating_add(2).min(area.width),
             height: help_area.height,
         };
         Clear.render(outer_area, buf);
