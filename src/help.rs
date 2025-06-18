@@ -7,16 +7,16 @@ use ratatui::{
 };
 
 static TEXT: &[&str] = &[
-    "j, UP           Scroll up one week\n",
-    "k, DOWN         Scroll down one week\n",
-    "w, PAGE UP      Scroll up one page\n",
-    "z, PAGE DOWN    Scroll down one page\n",
-    "0, HOME         Jump to today\n",
-    "g               Input date to jump to\n",
-    "?               Show this help\n",
-    "q, ESC          Quit\n",
-    "\n",
-    "Press the Any Key to dismiss.\n",
+    "j, UP           Scroll up one week",
+    "k, DOWN         Scroll down one week",
+    "w, PAGE UP      Scroll up one page",
+    "z, PAGE DOWN    Scroll down one page",
+    "0, HOME         Jump to today",
+    "g               Input date to jump to",
+    "?               Show this help",
+    "q, ESC          Quit",
+    "",
+    "Press the Any Key to dismiss.",
 ];
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
