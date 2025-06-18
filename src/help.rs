@@ -2,7 +2,7 @@ use crate::theme::BASE_STYLE;
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Flex, Layout, Rect},
-    text::{Line, Text},
+    text::Text,
     widgets::{Block, Clear, Paragraph, Widget},
 };
 
@@ -24,8 +24,7 @@ pub(crate) struct Help;
 
 impl Widget for Help {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let lines = TEXT.iter().map(|&s| Line::raw(s)).collect::<Vec<_>>();
-        let text = Text::from(lines);
+        let text = Text::from_iter(TEXT.iter().copied());
         let height = u16::try_from(text.height())
             .unwrap_or(u16::MAX)
             .min(area.height)
