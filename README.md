@@ -43,8 +43,8 @@ Key Bindings
 
 | Key                                | Command                 |
 | ---------------------------------- | ----------------------- |
-| <kbd>j</kbd>, <kbd>Up</kbd>        | Scroll up one week      |
-| <kbd>k</kbd>, <kbd>Down</kbd>      | Scroll down one week    |
+| <kbd>k</kbd>, <kbd>Up</kbd>        | Scroll up one week      |
+| <kbd>j</kbd>, <kbd>Down</kbd>      | Scroll down one week    |
 | <kbd>w</kbd>, <kbd>Page Up</kbd>   | Scroll up one page      |
 | <kbd>z</kbd>, <kbd>Page Down</kbd> | Scroll down one page    |
 | <kbd>0</kbd>, <kbd>Home</kbd>      | Jump to today           |
