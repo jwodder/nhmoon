@@ -38,6 +38,9 @@ supported.
 
 [years]: https://en.wikipedia.org/wiki/Astronomical_year_numbering
 
+The calendar highlights dates of NetHack full moons in bold yellow and new
+moons in bright blue.
+
 Key Bindings
 ------------
 
