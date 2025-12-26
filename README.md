@@ -3,6 +3,7 @@
 [![codecov.io](https://codecov.io/gh/jwodder/nhmoon/branch/master/graph/badge.svg)](https://codecov.io/gh/jwodder/nhmoon)
 [![Minimum Supported Rust Version](https://img.shields.io/badge/MSRV-1.86-orange)](https://www.rust-lang.org)
 [![MIT License](https://img.shields.io/github/license/jwodder/nhmoon.svg)](https://opensource.org/licenses/MIT)
+[![Built With Ratatui](https://ratatui.rs/built-with-ratatui/badge.svg)](https://ratatui.rs/)
 
 `nhmoon` is a [Rust](https://www.rust-lang.org) program for viewing & scrolling
 through a slice of the calendar in your terminal.  Days with [new or full
