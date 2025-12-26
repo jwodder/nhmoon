@@ -6,6 +6,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
     style::Style,
+    symbols::line,
     text::Span,
     widgets::{StatefulWidget, Widget},
 };
@@ -53,12 +54,6 @@ const VBAR_OFFSET: u16 = 5;
 /// Number of columns per day of week
 const DAY_WIDTH: u16 = 7;
 
-const ACS_HLINE: char = '─';
-const ACS_VLINE: char = '│';
-const ACS_TTEE: char = '┬';
-const ACS_ULCORNER: char = '┌';
-const ACS_LRCORNER: char = '┘';
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Calendar<S> {
     _data: PhantomData<S>,
@@ -85,13 +80,12 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
         let left = (area.width.saturating_sub(MAIN_WIDTH) / 2).max(LEFT_MARGIN) - LEFT_MARGIN;
         // Flex::Center is not applicable here, as we're centering `MAIN_WIDTH`
         // but getting a Rect for `TOTAL_WIDTH`.
-        let chunks = Layout::horizontal([
+        let [_, area, _] = Layout::horizontal([
             Constraint::Length(left),
             Constraint::Length(TOTAL_WIDTH.min(area.width)),
             Constraint::Min(0),
         ])
-        .split(area);
-        let area = chunks[1];
+        .areas(area);
         let today = state.today;
         let weeks = state.ensure_weeks(Self::weeks_for_lines(area.height));
         let mut canvas = BufferCanvas::new(area, buf);
@@ -146,7 +140,7 @@ impl<'a> BufferCanvas<'a> {
 
     fn draw_header(&mut self) {
         self.mvprint(0, LEFT_MARGIN, HEADER, Some(WEEKDAY_STYLE));
-        self.hline(1, LEFT_MARGIN, ACS_HLINE, MAIN_WIDTH);
+        self.hline(1, LEFT_MARGIN, line::HORIZONTAL, MAIN_WIDTH);
     }
 
     fn draw_year(&mut self, week_no: u16, year: i32) {
@@ -183,26 +177,25 @@ impl<'a> BufferCanvas<'a> {
         let offset = DAY_WIDTH * wd.index0();
         let bar_col = LEFT_MARGIN + offset + VBAR_OFFSET;
         if wd != Saturday {
-            self.mvaddch(y, bar_col, ACS_VLINE);
-            self.mvaddch(
+            self.mvprint(y, bar_col, line::VERTICAL, None);
+            self.mvprint(
                 y - 1,
                 bar_col,
-                if week_no == 0 { ACS_TTEE } else { ACS_ULCORNER },
+                if week_no == 0 {
+                    line::HORIZONTAL_DOWN
+                } else {
+                    line::TOP_LEFT
+                },
+                None,
             );
             if week_no > 0 {
                 if let Some(length) = MAIN_WIDTH.checked_sub(offset + VBAR_OFFSET + 1) {
-                    self.hline(y - 1, bar_col + 1, ACS_HLINE, length);
+                    self.hline(y - 1, bar_col + 1, line::HORIZONTAL, length);
                 }
             }
-            self.mvaddch(y + 1, bar_col, ACS_LRCORNER);
+            self.mvprint(y + 1, bar_col, line::BOTTOM_RIGHT, None);
         }
-        self.hline(y + 1, LEFT_MARGIN, ACS_HLINE, offset + VBAR_OFFSET);
-    }
-
-    fn mvaddch(&mut self, y: u16, x: u16, ch: char) {
-        if y < self.area.height && x < self.area.width {
-            self.buf[(x + self.area.x, y + self.area.y)].set_char(ch);
-        }
+        self.hline(y + 1, LEFT_MARGIN, line::HORIZONTAL, offset + VBAR_OFFSET);
     }
 
     fn mvprint<S: AsRef<str>>(&mut self, y: u16, x: u16, s: S, style: Option<Style>) {
@@ -218,7 +211,7 @@ impl<'a> BufferCanvas<'a> {
         );
     }
 
-    fn hline(&mut self, y: u16, x: u16, ch: char, length: u16) {
-        self.mvprint(y, x, String::from(ch).repeat(length.into()), None);
+    fn hline(&mut self, y: u16, x: u16, sym: &str, length: u16) {
+        self.mvprint(y, x, String::from(sym).repeat(length.into()), None);
     }
 }
