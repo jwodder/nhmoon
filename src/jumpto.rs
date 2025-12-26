@@ -1,6 +1,6 @@
 use crate::theme::{
-    jumpto::{READY_ENTER_STYLE, UNFILLED_CELL_STYLE},
     BASE_STYLE,
+    jumpto::{READY_ENTER_STYLE, UNFILLED_CELL_STYLE},
 };
 use ratatui::{
     buffer::Buffer,

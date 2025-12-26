@@ -1,5 +1,5 @@
-use super::util::{NonEmptyVecDeque, Week, WeekFactory};
 use super::DateStyler;
+use super::util::{NonEmptyVecDeque, Week, WeekFactory};
 use std::cmp::Ordering;
 use std::num::NonZeroUsize;
 use thiserror::Error;
