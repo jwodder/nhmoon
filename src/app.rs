@@ -26,12 +26,12 @@ impl<S: DateStyler> App<S> {
         }
     }
 
-    pub(crate) fn run<B: Backend>(mut self, mut terminal: Terminal<B>) -> io::Result<()>
+    pub(crate) fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> io::Result<()>
     where
         io::Error: From<B::Error>,
     {
         while !self.quitting() {
-            self.draw(&mut terminal)?;
+            self.draw(terminal)?;
             self.handle_input()?;
         }
         Ok(())

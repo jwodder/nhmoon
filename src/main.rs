@@ -55,10 +55,7 @@ impl Command {
                 if let Some(date) = date {
                     calpager = calpager.start_date(date);
                 }
-                let terminal = ratatui::init();
-                let r = App::new(calpager).run(terminal);
-                ratatui::restore();
-                r.map_err(Into::into)
+                ratatui::run(move |terminal| App::new(calpager).run(terminal)).map_err(Into::into)
             }
             Command::Help => {
                 println!("Usage: nhmoon [YYYY-MM-DD]");
