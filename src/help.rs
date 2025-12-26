@@ -1,7 +1,7 @@
 use crate::theme::BASE_STYLE;
 use ratatui::{
     buffer::Buffer,
-    layout::{Alignment, Flex, Layout, Rect},
+    layout::{Flex, HorizontalAlignment, Layout, Rect},
     text::Text,
     widgets::{Block, Clear, Paragraph, Widget},
 };
@@ -37,7 +37,7 @@ impl Widget for Help {
             .block(
                 Block::bordered()
                     .title(" Commands ")
-                    .title_alignment(Alignment::Center),
+                    .title_alignment(HorizontalAlignment::Center),
             )
             .style(BASE_STYLE);
         let [help_area] = Layout::horizontal([width]).flex(Flex::Center).areas(area);

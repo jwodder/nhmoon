@@ -4,7 +4,7 @@ use crate::theme::{
 };
 use ratatui::{
     buffer::Buffer,
-    layout::{Alignment, Flex, Layout, Margin, Rect},
+    layout::{Flex, HorizontalAlignment, Layout, Margin, Rect},
     text::{Line, Span, Text},
     widgets::{Block, Clear, StatefulWidget, Widget},
 };
@@ -42,7 +42,7 @@ impl StatefulWidget for JumpTo {
         let block_area = outer_area.inner(Margin::new(1, 1));
         Block::bordered()
             .title(" Jump To… ")
-            .title_alignment(Alignment::Center)
+            .title_alignment(HorizontalAlignment::Center)
             .render(block_area, buf);
         let text_area = block_area.inner(Margin::new(1, 1));
         state.to_text().render(text_area, buf);
