@@ -9,7 +9,7 @@ use crate::calendar::WeekWindow;
 use crate::moon::Phoon;
 use anyhow::Context;
 use lexopt::{Arg, Parser, ValueExt};
-use time::{format_description::FormatItem, macros::format_description, Date, OffsetDateTime};
+use time::{Date, OffsetDateTime, format_description::FormatItem, macros::format_description};
 
 static YMD_FMT: &[FormatItem<'_>] = format_description!("[year]-[month]-[day]");
 
@@ -35,7 +35,7 @@ impl Command {
                             return Err(lexopt::Error::ParsingFailed {
                                 value,
                                 error: Box::new(e),
-                            })
+                            });
                         }
                     }
                 }

@@ -1,6 +1,6 @@
+use super::DateStyler;
 use super::util::WeekdayExt;
 use super::weeks::WeekWindow;
-use super::DateStyler;
 use crate::theme::{MONTH_STYLE, WEEKDAY_STYLE, YEAR_STYLE};
 use ratatui::{
     buffer::Buffer,

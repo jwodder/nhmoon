@@ -2,13 +2,13 @@ use crate::calendar::{Calendar, DateStyler, WeekWindow};
 use crate::help::Help;
 use crate::jumpto::{JumpTo, JumpToInput, JumpToOutput, JumpToState};
 use crate::theme::BASE_STYLE;
-use crossterm::event::{read, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, read};
 use ratatui::{
+    Terminal,
     backend::Backend,
     buffer::Buffer,
     layout::Rect,
     widgets::{StatefulWidget, Widget},
-    Terminal,
 };
 use std::io::{self, Write};
 

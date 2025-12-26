@@ -1,7 +1,7 @@
 [package]
 name = "nhmoon"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 rust-version = "1.86"
 description = "Scrollable terminal calendar highlighting NetHack's new & full moons"
 authors = ["John Thorvald Wodder II <nhmoon@varonathe.org>"]
