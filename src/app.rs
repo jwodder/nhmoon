@@ -3,6 +3,7 @@ use crate::help::Help;
 use crate::jumpto::{JumpTo, JumpToInput, JumpToOutput, JumpToState};
 use crate::theme::BASE_STYLE;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, read};
+use jiff::civil::Date;
 use ratatui::{
     Terminal,
     backend::Backend,
@@ -159,7 +160,7 @@ impl<S: DateStyler> App<S> {
         self.weeks.jump_to_today();
     }
 
-    fn jump_to(&mut self, date: time::Date) {
+    fn jump_to(&mut self, date: Date) {
         self.weeks.jump_to_date(date);
     }
 }
@@ -195,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_across_year() {
-        let today = time::Date::from_calendar_date(2025, time::Month::January, 22).unwrap();
+        let today = Date::new(2025, 1, 22).unwrap();
         let calpager = WeekWindow::new(today, Phoon);
         let mut app = App::new(calpager);
         let area = Rect::new(0, 0, 80, 24);
@@ -262,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_help() {
-        let today = time::Date::from_calendar_date(2025, time::Month::January, 22).unwrap();
+        let today = Date::new(2025, 1, 22).unwrap();
         let calpager = WeekWindow::new(today, Phoon);
         let mut app = App::new(calpager);
         app.handle_key(KeyCode::Char('?'));
