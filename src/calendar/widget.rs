@@ -1,7 +1,8 @@
 use super::DateStyler;
-use super::util::WeekdayExt;
+use super::util::{Month, WeekdayExt, YearInt};
 use super::weeks::WeekWindow;
 use crate::theme::{MONTH_STYLE, WEEKDAY_STYLE, YEAR_STYLE};
+use jiff::civil::{Date, Weekday};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
@@ -12,11 +13,6 @@ use ratatui::{
 };
 use std::marker::PhantomData;
 use std::num::NonZeroUsize;
-use time::{
-    Date,
-    Month::{self, January},
-    Weekday::{self, Saturday},
-};
 
 static HEADER: &str = " Su     Mo     Tu     We     Th     Fr     Sa ";
 
@@ -98,8 +94,8 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
                 let (first_year, first_month) = week.first_ym();
                 let (last_year, last_month) = week.last_ym();
                 canvas.draw_month(i, last_month);
-                if last_month == January {
-                    if first_month == January {
+                if last_month == Month::January {
+                    if first_month == Month::January {
                         canvas.draw_year(i, first_year);
                     } else if usize::from(i + 1) < weeks.len().get() {
                         canvas.draw_year(i + 1, last_year);
@@ -116,7 +112,7 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
                     // For time::Date's default bounds, `weekday_before_time`
                     // is actually a Sunday, but we should be ready if the
                     // bounds change.
-                    if weekday_before_time != Saturday {
+                    if weekday_before_time != Weekday::Saturday {
                         canvas.draw_month_border(i, weekday_before_time);
                     } else if i > 0 {
                         canvas.draw_month_border(i - 1, weekday_before_time);
@@ -143,7 +139,7 @@ impl<'a> BufferCanvas<'a> {
         self.hline(1, LEFT_MARGIN, line::HORIZONTAL, MAIN_WIDTH);
     }
 
-    fn draw_year(&mut self, week_no: u16, year: i32) {
+    fn draw_year(&mut self, week_no: u16, year: YearInt) {
         self.mvprint(
             week_no * WEEK_LINES + HEADER_LINES,
             0,
@@ -156,7 +152,7 @@ impl<'a> BufferCanvas<'a> {
         self.mvprint(
             week_no * WEEK_LINES + HEADER_LINES,
             LEFT_MARGIN + MAIN_WIDTH + MONTH_GUTTER,
-            month.to_string(),
+            month.name(),
             Some(MONTH_STYLE),
         );
     }
@@ -176,7 +172,7 @@ impl<'a> BufferCanvas<'a> {
         let y = week_no * WEEK_LINES + HEADER_LINES;
         let offset = DAY_WIDTH * wd.index0();
         let bar_col = LEFT_MARGIN + offset + VBAR_OFFSET;
-        if wd != Saturday {
+        if wd != Weekday::Saturday {
             self.mvprint(y, bar_col, line::VERTICAL, None);
             self.mvprint(
                 y - 1,

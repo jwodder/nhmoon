@@ -7,11 +7,8 @@ mod theme;
 use crate::app::App;
 use crate::calendar::WeekWindow;
 use crate::moon::Phoon;
-use anyhow::Context;
+use jiff::{Zoned, civil::Date};
 use lexopt::{Arg, Parser, ValueExt};
-use time::{Date, OffsetDateTime, format_description::FormatItem, macros::format_description};
-
-static YMD_FMT: &[FormatItem<'_>] = format_description!("[year]-[month]-[day]");
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Command {
@@ -28,16 +25,7 @@ impl Command {
                 Arg::Short('h') | Arg::Long("help") => return Ok(Command::Help),
                 Arg::Short('V') | Arg::Long("version") => return Ok(Command::Version),
                 Arg::Value(value) if date.is_none() => {
-                    let value = value.string()?;
-                    match Date::parse(&value, &YMD_FMT) {
-                        Ok(d) => date = Some(d),
-                        Err(e) => {
-                            return Err(lexopt::Error::ParsingFailed {
-                                value,
-                                error: Box::new(e),
-                            });
-                        }
-                    }
+                    date = Some(value.parse()?);
                 }
                 _ => return Err(arg.unexpected()),
             }
@@ -48,9 +36,7 @@ impl Command {
     fn run(self) -> anyhow::Result<()> {
         match self {
             Command::Run { date } => {
-                let today = OffsetDateTime::now_local()
-                    .context("failed to determine local date")?
-                    .date();
+                let today = Zoned::now().date();
                 let mut calpager = WeekWindow::new(today, Phoon);
                 if let Some(date) = date {
                     calpager = calpager.start_date(date);

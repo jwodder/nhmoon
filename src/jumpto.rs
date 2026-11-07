@@ -2,6 +2,7 @@ use crate::theme::{
     BASE_STYLE,
     jumpto::{READY_ENTER_STYLE, UNFILLED_CELL_STYLE},
 };
+use jiff::civil::Date;
 use ratatui::{
     buffer::Buffer,
     layout::{Flex, HorizontalAlignment, Layout, Margin, Rect},
@@ -52,9 +53,9 @@ impl StatefulWidget for JumpTo {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct JumpToState {
     negative: bool,
-    year: [Option<u8>; 4],
-    month: [Option<u8>; 2],
-    day: [Option<u8>; 2],
+    year: [Option<i8>; 4],
+    month: [Option<i8>; 2],
+    day: [Option<i8>; 2],
     pos: usize,
 }
 
@@ -139,28 +140,25 @@ impl JumpToState {
                 JumpToOutput::Ok
             }
             (JumpToInput::Enter, ENTER_POS) => {
-                let mut year = 0i32;
+                let mut year = 0i16;
                 for d in self.year {
                     let d = d.expect("All year digits should be set");
-                    year = year * 10 + i32::from(d);
+                    year = year * 10 + i16::from(d);
                 }
                 if self.negative {
                     year *= -1;
                 }
-                let mut month = 0u8;
+                let mut month = 0i8;
                 for d in self.month {
                     let d = d.expect("All month digits should be set");
                     month = month * 10 + d;
                 }
-                let Ok(month) = time::Month::try_from(month) else {
-                    return JumpToOutput::Invalid;
-                };
-                let mut day = 0u8;
+                let mut day = 0i8;
                 for d in self.month {
                     let d = d.expect("All day digits should be set");
                     day = day * 10 + d;
                 }
-                match time::Date::from_calendar_date(year, month, day) {
+                match Date::new(year, month, day) {
                     Ok(date) => JumpToOutput::Jump(date),
                     Err(_) => JumpToOutput::Invalid,
                 }
@@ -174,7 +172,7 @@ impl JumpToState {
 pub(crate) enum JumpToInput {
     Negative,
     Positive,
-    Digit(u8),
+    Digit(i8),
     Backspace,
     Enter,
 }
@@ -183,5 +181,5 @@ pub(crate) enum JumpToInput {
 pub(crate) enum JumpToOutput {
     Ok,
     Invalid,
-    Jump(time::Date),
+    Jump(Date),
 }

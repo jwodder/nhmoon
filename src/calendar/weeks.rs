@@ -1,9 +1,9 @@
 use super::DateStyler;
 use super::util::{NonEmptyVecDeque, Week, WeekFactory};
+use jiff::civil::Date;
 use std::cmp::Ordering;
 use std::num::NonZeroUsize;
 use thiserror::Error;
-use time::Date;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct WeekWindow<S> {

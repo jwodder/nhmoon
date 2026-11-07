@@ -1,11 +1,84 @@
 use super::DateStyler;
+use jiff::civil::{Date, Weekday, Weekday::*};
 use ratatui::{style::Style, text::Span};
 use std::collections::VecDeque;
 use std::iter::successors;
 use std::num::NonZeroUsize;
-use time::{Date, Month, Weekday, Weekday::*};
+use thiserror::Error;
 
 const DAYS_IN_WEEK: usize = 7;
+
+pub(super) type YearInt = i16;
+
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)]
+pub(super) enum Month {
+    January = 1,
+    February = 2,
+    March = 3,
+    April = 4,
+    May = 5,
+    June = 6,
+    July = 7,
+    August = 8,
+    September = 9,
+    October = 10,
+    November = 11,
+    December = 12,
+}
+
+impl Month {
+    pub(super) const fn name(&self) -> &'static str {
+        use Month::*;
+        match self {
+            January => "January",
+            February => "February",
+            March => "March",
+            April => "April",
+            May => "May",
+            June => "June",
+            July => "July",
+            August => "August",
+            September => "September",
+            October => "October",
+            November => "November",
+            December => "December",
+        }
+    }
+}
+
+impl TryFrom<i8> for Month {
+    type Error = TryIntoMonthError;
+
+    /// Convert a month number to the corresponding month.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TryIntoMonthError`] if the given number is less than
+    /// one or greater than twelve.
+    fn try_from(value: i8) -> Result<Month, TryIntoMonthError> {
+        use Month::*;
+        match value {
+            1 => Ok(January),
+            2 => Ok(February),
+            3 => Ok(March),
+            4 => Ok(April),
+            5 => Ok(May),
+            6 => Ok(June),
+            7 => Ok(July),
+            8 => Ok(August),
+            9 => Ok(September),
+            10 => Ok(October),
+            11 => Ok(November),
+            12 => Ok(December),
+            _ => Err(TryIntoMonthError),
+        }
+    }
+}
+
+/// Error returned when converting a number to a month fails
+#[derive(Clone, Copy, Debug, Default, Error, Hash, Eq, Ord, PartialEq, PartialOrd)]
+#[error("value out of range for month number; must be from 1 through 12")]
+pub(super) struct TryIntoMonthError;
 
 pub(super) trait WeekdayExt {
     fn index0(&self) -> u16;
@@ -13,7 +86,9 @@ pub(super) trait WeekdayExt {
 
 impl WeekdayExt for Weekday {
     fn index0(&self) -> u16 {
-        self.number_days_from_sunday().into()
+        self.to_sunday_zero_offset()
+            .try_into()
+            .expect("to_sunday_zero_offset should be nonnegative")
     }
 }
 
@@ -24,22 +99,25 @@ pub(super) struct StyledDate {
 }
 
 impl StyledDate {
-    pub(super) fn year(&self) -> i32 {
+    pub(super) fn year(&self) -> YearInt {
         self.date.year()
     }
 
     pub(super) fn month(&self) -> Month {
-        self.date.month()
+        self.date
+            .month()
+            .try_into()
+            .expect("Date.month() should be a valid month number")
     }
 
-    pub(super) fn day(&self) -> u8 {
+    pub(super) fn day(&self) -> i8 {
         self.date.day()
     }
 
     pub(super) fn is_last_day_of_month(&self) -> bool {
-        match self.date.next_day() {
-            Some(tomorrow) => self.date.month() != tomorrow.month(),
-            None => true,
+        match self.date.tomorrow() {
+            Ok(tomorrow) => self.date.month() != tomorrow.month(),
+            Err(_) => true,
         }
     }
 
@@ -85,7 +163,7 @@ impl Week {
         self.0.iter().flatten().any(|sd| sd.date.day() == 1)
     }
 
-    pub(super) fn first_ym(&self) -> (i32, Month) {
+    pub(super) fn first_ym(&self) -> (YearInt, Month) {
         self.0
             .iter()
             .flatten()
@@ -94,7 +172,7 @@ impl Week {
             .expect("Week should contain at least one Some")
     }
 
-    pub(super) fn last_ym(&self) -> (i32, Month) {
+    pub(super) fn last_ym(&self) -> (YearInt, Month) {
         self.0
             .iter()
             .flatten()
@@ -188,13 +266,13 @@ impl<S: DateStyler> WeekFactory<S> {
 
     pub(super) fn week_before(&self, week: &Week) -> Option<Week> {
         week.get(Sunday)
-            .and_then(|sd| sd.date.previous_day())
+            .and_then(|sd| sd.date.yesterday().ok())
             .map(|d| self.make(d))
     }
 
     pub(super) fn week_after(&self, week: &Week) -> Option<Week> {
         week.get(Saturday)
-            .and_then(|sd| sd.date.next_day())
+            .and_then(|sd| sd.date.tomorrow().ok())
             .map(|d| self.make(d))
     }
 
@@ -333,17 +411,17 @@ impl<T> Extend<T> for NonEmptyVecDeque<T> {
 }
 
 fn iter_days_after(date: Date) -> impl Iterator<Item = Date> {
-    successors(Some(date), |&d| d.next_day()).skip(1)
+    date.series(jiff::Span::new().days(1)).skip(1)
 }
 
 fn iter_days_before(date: Date) -> impl Iterator<Item = Date> {
-    successors(Some(date), |&d| d.previous_day()).skip(1)
+    date.series(jiff::Span::new().days(-1)).skip(1)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use time::macros::date;
+    use jiff::civil::date;
 
     struct NullStyler;
 
@@ -356,45 +434,45 @@ mod tests {
     #[test]
     fn test_make() {
         let factory = WeekFactory::new(NullStyler);
-        let week = factory.make(date!(2023 - 11 - 16));
+        let week = factory.make(date(2023, 11, 16));
         let mut iter = week.enumerate().map(|(wd, sd)| (wd, sd.date));
-        assert_eq!(iter.next(), Some((Sunday, date!(2023 - 11 - 12))));
-        assert_eq!(iter.next(), Some((Monday, date!(2023 - 11 - 13))));
-        assert_eq!(iter.next(), Some((Tuesday, date!(2023 - 11 - 14))));
-        assert_eq!(iter.next(), Some((Wednesday, date!(2023 - 11 - 15))));
-        assert_eq!(iter.next(), Some((Thursday, date!(2023 - 11 - 16))));
-        assert_eq!(iter.next(), Some((Friday, date!(2023 - 11 - 17))));
-        assert_eq!(iter.next(), Some((Saturday, date!(2023 - 11 - 18))));
+        assert_eq!(iter.next(), Some((Sunday, date(2023, 11, 12))));
+        assert_eq!(iter.next(), Some((Monday, date(2023, 11, 13))));
+        assert_eq!(iter.next(), Some((Tuesday, date(2023, 11, 14))));
+        assert_eq!(iter.next(), Some((Wednesday, date(2023, 11, 15))));
+        assert_eq!(iter.next(), Some((Thursday, date(2023, 11, 16))));
+        assert_eq!(iter.next(), Some((Friday, date(2023, 11, 17))));
+        assert_eq!(iter.next(), Some((Saturday, date(2023, 11, 18))));
         assert_eq!(iter.next(), None);
     }
 
     #[test]
     fn test_make_from_sunday() {
         let factory = WeekFactory::new(NullStyler);
-        let week = factory.make(date!(2023 - 11 - 12));
+        let week = factory.make(date(2023, 11, 12));
         let mut iter = week.enumerate().map(|(wd, sd)| (wd, sd.date));
-        assert_eq!(iter.next(), Some((Sunday, date!(2023 - 11 - 12))));
-        assert_eq!(iter.next(), Some((Monday, date!(2023 - 11 - 13))));
-        assert_eq!(iter.next(), Some((Tuesday, date!(2023 - 11 - 14))));
-        assert_eq!(iter.next(), Some((Wednesday, date!(2023 - 11 - 15))));
-        assert_eq!(iter.next(), Some((Thursday, date!(2023 - 11 - 16))));
-        assert_eq!(iter.next(), Some((Friday, date!(2023 - 11 - 17))));
-        assert_eq!(iter.next(), Some((Saturday, date!(2023 - 11 - 18))));
+        assert_eq!(iter.next(), Some((Sunday, date(2023, 11, 12))));
+        assert_eq!(iter.next(), Some((Monday, date(2023, 11, 13))));
+        assert_eq!(iter.next(), Some((Tuesday, date(2023, 11, 14))));
+        assert_eq!(iter.next(), Some((Wednesday, date(2023, 11, 15))));
+        assert_eq!(iter.next(), Some((Thursday, date(2023, 11, 16))));
+        assert_eq!(iter.next(), Some((Friday, date(2023, 11, 17))));
+        assert_eq!(iter.next(), Some((Saturday, date(2023, 11, 18))));
         assert_eq!(iter.next(), None);
     }
 
     #[test]
     fn test_make_from_saturday() {
         let factory = WeekFactory::new(NullStyler);
-        let week = factory.make(date!(2023 - 11 - 18));
+        let week = factory.make(date(2023, 11, 18));
         let mut iter = week.enumerate().map(|(wd, sd)| (wd, sd.date));
-        assert_eq!(iter.next(), Some((Sunday, date!(2023 - 11 - 12))));
-        assert_eq!(iter.next(), Some((Monday, date!(2023 - 11 - 13))));
-        assert_eq!(iter.next(), Some((Tuesday, date!(2023 - 11 - 14))));
-        assert_eq!(iter.next(), Some((Wednesday, date!(2023 - 11 - 15))));
-        assert_eq!(iter.next(), Some((Thursday, date!(2023 - 11 - 16))));
-        assert_eq!(iter.next(), Some((Friday, date!(2023 - 11 - 17))));
-        assert_eq!(iter.next(), Some((Saturday, date!(2023 - 11 - 18))));
+        assert_eq!(iter.next(), Some((Sunday, date(2023, 11, 12))));
+        assert_eq!(iter.next(), Some((Monday, date(2023, 11, 13))));
+        assert_eq!(iter.next(), Some((Tuesday, date(2023, 11, 14))));
+        assert_eq!(iter.next(), Some((Wednesday, date(2023, 11, 15))));
+        assert_eq!(iter.next(), Some((Thursday, date(2023, 11, 16))));
+        assert_eq!(iter.next(), Some((Friday, date(2023, 11, 17))));
+        assert_eq!(iter.next(), Some((Saturday, date(2023, 11, 18))));
         assert_eq!(iter.next(), None);
     }
 }
