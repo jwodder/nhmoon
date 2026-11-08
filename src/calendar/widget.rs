@@ -109,9 +109,6 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
                     canvas.draw_month_border(i, wd);
                 } else if date.date == Date::MIN {
                     let weekday_before_time = wd.previous();
-                    // For time::Date's default bounds, `weekday_before_time`
-                    // is actually a Sunday, but we should be ready if the
-                    // bounds change.
                     if weekday_before_time != Weekday::Saturday {
                         canvas.draw_month_border(i, weekday_before_time);
                     } else if i > 0 {
