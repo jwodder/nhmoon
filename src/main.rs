@@ -7,7 +7,7 @@ mod theme;
 use crate::app::App;
 use crate::calendar::WeekWindow;
 use crate::moon::Phoon;
-use jiff::{Zoned, civil::Date};
+use jiff::{ZonedDateTime, civil::Date};
 use lexopt::{Arg, Parser, ValueExt};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -36,7 +36,7 @@ impl Command {
     fn run(self) -> anyhow::Result<()> {
         match self {
             Command::Run { date } => {
-                let today = Zoned::now().date();
+                let today = ZonedDateTime::now().date();
                 let mut calpager = WeekWindow::new(today, Phoon);
                 if let Some(date) = date {
                     calpager = calpager.start_date(date);
