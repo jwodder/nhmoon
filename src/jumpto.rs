@@ -154,7 +154,7 @@ impl JumpToState {
                     month = month * 10 + d;
                 }
                 let mut day = 0i8;
-                for d in self.month {
+                for d in self.day {
                     let d = d.expect("All day digits should be set");
                     day = day * 10 + d;
                 }
