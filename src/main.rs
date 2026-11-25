@@ -39,7 +39,7 @@ impl Command {
                 let today = ZonedDateTime::now().date();
                 let mut calpager = WeekWindow::new(today, Phoon);
                 if let Some(date) = date {
-                    calpager = calpager.start_date(date);
+                    calpager.jump_to_date(date);
                 }
                 ratatui::run(move |terminal| App::new(calpager).run(terminal)).map_err(Into::into)
             }

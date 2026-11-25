@@ -83,6 +83,7 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
         ])
         .areas(area);
         let today = state.today;
+        let jump_target = state.jump_target;
         let weeks = state.ensure_weeks(Self::weeks_for_lines(area.height));
         let mut canvas = BufferCanvas::new(area, buf);
         canvas.draw_header();
@@ -103,7 +104,7 @@ impl<S: DateStyler> StatefulWidget for Calendar<S> {
                 }
             }
             for (wd, date) in week.enumerate() {
-                let s = date.show(date.date == today);
+                let s = date.show(date.date == today, jump_target == Some(date.date));
                 canvas.draw_day(i, wd, s);
                 if date.is_last_day_of_month() {
                     canvas.draw_month_border(i, wd);

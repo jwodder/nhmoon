@@ -40,7 +40,9 @@ supported.
 [years]: https://en.wikipedia.org/wiki/Astronomical_year_numbering
 
 The calendar highlights dates of NetHack full moons in bold yellow and new
-moons in bright blue.
+moons in bright blue.  Today's date is enclosed is square brackets.  If a date
+was supplied on the command line, or if a date was jumped to using the
+<kbd>g</kbd> command, the last such date will be highlighted in reverse video.
 
 Key Bindings
 ------------

@@ -9,6 +9,8 @@ pub(crate) const FULL_MOON_STYLE: Style = Style::new()
 
 pub(crate) const NEW_MOON_STYLE: Style = Style::new().fg(Color::LightBlue).bg(Color::Black);
 
+pub(crate) const JUMP_TARGET_STYLE: Style = Style::new().reversed();
+
 pub(crate) const YEAR_STYLE: Style = BASE_STYLE.add_modifier(Modifier::BOLD);
 
 pub(crate) const MONTH_STYLE: Style = BASE_STYLE.add_modifier(Modifier::BOLD);
