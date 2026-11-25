@@ -1,4 +1,5 @@
 use super::DateStyler;
+use crate::theme::JUMP_TARGET_STYLE;
 use jiff::civil::{Date, Weekday, Weekday::*};
 use ratatui::{style::Style, text::Span};
 use std::collections::VecDeque;
@@ -121,13 +122,17 @@ impl StyledDate {
         }
     }
 
-    pub(super) fn show(&self, is_today: bool) -> Span<'static> {
+    pub(super) fn show(&self, is_today: bool, is_jump_target: bool) -> Span<'static> {
         let s = if is_today {
             format!("[{:2}]", self.day())
         } else {
             format!(" {:2} ", self.day())
         };
-        Span::styled(s, self.style)
+        let mut sty = self.style;
+        if is_jump_target {
+            sty = sty.patch(JUMP_TARGET_STYLE);
+        }
+        Span::styled(s, sty)
     }
 }
 

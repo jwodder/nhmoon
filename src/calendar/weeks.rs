@@ -8,7 +8,7 @@ use thiserror::Error;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct WeekWindow<S> {
     pub(super) today: Date,
-    start_date: Date,
+    pub(super) jump_target: Option<Date>,
     weeks: Option<NonEmptyVecDeque<Week>>,
     week_factory: WeekFactory<S>,
 }
@@ -18,15 +18,10 @@ impl<S: DateStyler> WeekWindow<S> {
         let week_factory = WeekFactory::new(date_styler);
         WeekWindow {
             today,
-            start_date: today,
+            jump_target: None,
             week_factory,
             weeks: None,
         }
-    }
-
-    pub(crate) fn start_date(mut self, date: Date) -> Self {
-        self.start_date = date;
-        self
     }
 
     pub(super) fn ensure_weeks(&mut self, week_qty: NonZeroUsize) -> &NonEmptyVecDeque<Week> {
@@ -53,8 +48,10 @@ impl<S: DateStyler> WeekWindow<S> {
                 Ordering::Equal => (),
             }
         }
-        self.weeks
-            .get_or_insert_with(|| self.week_factory.around_date(self.start_date, week_qty))
+        self.weeks.get_or_insert_with(|| {
+            self.week_factory
+                .around_date(self.jump_target.unwrap_or(self.today), week_qty)
+        })
     }
 
     pub(crate) fn jump_to_today(&mut self) {
@@ -67,6 +64,7 @@ impl<S: DateStyler> WeekWindow<S> {
         if let Some(weeks) = self.weeks.as_mut() {
             *weeks = self.week_factory.around_date(date, weeks.len());
         }
+        self.jump_target = Some(date);
     }
 
     pub(crate) fn one_week_forwards(&mut self) -> Result<(), OutOfTimeError> {
